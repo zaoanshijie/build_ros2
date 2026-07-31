@@ -62,6 +62,14 @@ rosdep install --from-paths src --ignore-src -y --skip-keys "fastcdr rti-connext
 colcon mixin add default https://github.com/colcon/colcon-mixin-repository/raw/master/index.yaml
 colcon mixin update default
 
+dest_arch="x86_64"
+if [[ ${build_target} == "arm64" ]]; then
+  dest_arch="aarch64"
+fi
+echo "编译平台:${dest_arch}"
+# 替换平台
+sed -i "s/^.*CMAKE_SYSTEM_PROCESSOR.*$/set(CMAKE_SYSTEM_PROCESSOR ${dest_arch})/" ${work_dir}/toolchain.cmake
+
 # 编译
 # CMAKE_SUPPRESS_DEVELOPER_WARNINGS=ON # 抑制开发者警告
 # CMAKE_WARN_DEPRECATED=OFF # 是否对已弃用的功能发出警告

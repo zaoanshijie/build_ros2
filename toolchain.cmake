@@ -1,9 +1,6 @@
 set(CMAKE_SYSTEM_NAME Linux)
 set(CMAKE_SYSTEM_PROCESSOR aarch64)
 
-# 指定交叉编译的编译器
-set(TRIPLE ${CMAKE_SYSTEM_PROCESSOR}-linux-gnu)
-
 set(CMAKE_C_COMPILER clang)
 set(CMAKE_CXX_COMPILER clang++)
 set(CMAKE_LINKER lld)
