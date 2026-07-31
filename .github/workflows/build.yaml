@@ -109,7 +109,7 @@ jobs:
   #         Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
   #         New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "LongPathsEnabled" -Value 1 -PropertyType DWORD -Force
   #         echo "FILE_DATE=$(date +'%Y-%m-%d_%H%M')" >> $env:GITHUB_ENV
-  #         & $env:GITHUB_WORKSPACE/build.ps1 -d "$env:ROS2_VERSION" -g "$env:MIRROR_GITHUB" -r "$env:MIRROR_RAW"
+  #         & $env:GITHUB_WORKSPACE/build.ps1 -d "$env:ROS2_VERSION"
 
   #     - name: 打包
   #       if: always()

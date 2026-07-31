@@ -77,7 +77,7 @@ fi
 
 rm -rf ${clang_path}/*.tar.xz
 
-echo 'export PATH=${clang_path}/llvm/bin:$PATH' >> ~/.bashrc
+echo "export PATH=${clang_path}/llvm/bin:\$PATH" >> ~/.bashrc
 
 apt-get clean
 rm -rf /var/lib/apt/lists/*
