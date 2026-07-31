@@ -32,11 +32,11 @@ if (-not (Test-Path "$work_dir")) {
 cd $script_dir
 
 echo "下载pixi"
-if (-not (Test-Path "$work_dir/pixi.zip")) {
-  iwr "$github/prefix-dev/pixi/releases/download/v0.61.0/pixi-x86_64-pc-windows-msvc.zip" -OutFile "$work_dir/pixi.zip"
+if (-not (Test-Path "pixi.zip")) {
+  iwr "https://github.com/prefix-dev/pixi/releases/download/v0.75.0/pixi-x86_64-pc-windows-msvc.zip" -OutFile "pixi.zip"
 }
-Expand-Archive -Path "$work_dir/pixi.zip" -DestinationPath "$work_dir/pixi"
-$env:PATH="$work_dir/pixi;$env:PATH"
+Expand-Archive -Path "pixi.zip" -DestinationPath "pixi"
+$env:PATH="$script_dir/pixi;$env:PATH"
 
 
 echo "安装依赖"
