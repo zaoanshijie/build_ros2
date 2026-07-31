@@ -9,8 +9,6 @@ script_dir=$(
 work_dir="${script_dir}"
 # ros2版本
 ros2_version=
-# docker镜像(编译环境)
-build_docker=
 # 目标架构(amd64 arm64)
 build_target=
 
@@ -41,10 +39,6 @@ fi
 if [[ -z ${build_target} ]]; then
   echo "编译目标架构不能为空"
   print_help
-  exit 1
-fi
-if [[ ! -f ${build_docker} ]]; then
-  echo "docker镜像不存在:${build_docker}"
   exit 1
 fi
 

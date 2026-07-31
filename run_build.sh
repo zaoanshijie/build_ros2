@@ -90,7 +90,9 @@ mv *.tar ${work_dir}
 
 echo "执行编译"
 docker exec ros2-build-${build_target} /bin/bash -c "echo '容器运行成功,开始执行${build_target}编译'"
-docker exec ros2-build-${build_target} /bin/bash -c "ls -alh /workspace"
+docker exec ros2-build-${build_target} /bin/bash -c "cat ~/.bashrc"
+docker exec ros2-build-${build_target} /bin/bash -c "source ~/.bashrc"
+docker exec ros2-build-${build_target} /bin/bash -c "which clang"
 docker exec ros2-build-${build_target} /bin/bash -c "cd /workspace && /bin/bash build.sh -r ${ros2_version} -t ${build_target}"
 # 清理容器
 docker stop ros2-build-${build_target}
