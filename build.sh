@@ -31,6 +31,9 @@ while getopts 'r:t:h' OPT; do
     ;;
   esac
 done
+echo "设置llvm环境"
+export PATH=/opt/llvm/bin:${PATH}
+clang --version
 
 if [[ -z ${ros2_version} ]]; then
   ros2_version="jazzy"
