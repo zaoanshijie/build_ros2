@@ -55,29 +55,29 @@ apt install -y \
   ros-dev-tools \
   libssl-dev
 
-echo "安装clang:${cpuinfo}"
-cpuinfo=$(lscpu |grep aarch64 || true)
-clang_path="/opt"
-if [[ ! -d ${clang_path} ]]; then
-  mkdir ${clang_path}
-fi
-if [[ -z ${cpuinfo} ]]; then
-  curl -OL https://github.com/llvm/llvm-project/releases/download/llvmorg-22.1.8/LLVM-22.1.8-Linux-X64.tar.xz
-  mv LLVM-22.1.8-Linux-X64.tar.xz ${clang_path}
-  cd ${clang_path}
-  tar -xf LLVM-22.1.8-Linux-X64.tar.xz
-  ln -s ${clang_path}/LLVM-22.1.8-Linux-X64 ${clang_path}/llvm
-else
-  curl -OL https://github.com/llvm/llvm-project/releases/download/llvmorg-22.1.8/LLVM-22.1.8-Linux-ARM64.tar.xz
-  mv LLVM-22.1.8-Linux-ARM64.tar.xz ${clang_path}
-  cd ${clang_path}
-  tar -xf LLVM-22.1.8-Linux-ARM64.tar.xz
-  ln -s ${clang_path}/LLVM-22.1.8-Linux-ARM64 ${clang_path}/llvm
-fi
+# echo "安装clang:${cpuinfo}"
+# cpuinfo=$(lscpu |grep aarch64 || true)
+# clang_path="/opt"
+# if [[ ! -d ${clang_path} ]]; then
+#   mkdir ${clang_path}
+# fi
+# if [[ -z ${cpuinfo} ]]; then
+#   curl -OL https://github.com/llvm/llvm-project/releases/download/llvmorg-22.1.8/LLVM-22.1.8-Linux-X64.tar.xz
+#   mv LLVM-22.1.8-Linux-X64.tar.xz ${clang_path}
+#   cd ${clang_path}
+#   tar -xf LLVM-22.1.8-Linux-X64.tar.xz
+#   ln -s ${clang_path}/LLVM-22.1.8-Linux-X64 ${clang_path}/llvm
+# else
+#   curl -OL https://github.com/llvm/llvm-project/releases/download/llvmorg-22.1.8/LLVM-22.1.8-Linux-ARM64.tar.xz
+#   mv LLVM-22.1.8-Linux-ARM64.tar.xz ${clang_path}
+#   cd ${clang_path}
+#   tar -xf LLVM-22.1.8-Linux-ARM64.tar.xz
+#   ln -s ${clang_path}/LLVM-22.1.8-Linux-ARM64 ${clang_path}/llvm
+# fi
 
-rm -rf ${clang_path}/*.tar.xz
+# rm -rf ${clang_path}/*.tar.xz
 
-echo "export PATH=${clang_path}/llvm/bin:\$PATH" >> ~/.bashrc
+# echo "export PATH=${clang_path}/llvm/bin:\$PATH" >> ~/.bashrc
 
 apt-get clean
 rm -rf /var/lib/apt/lists/*

@@ -71,13 +71,13 @@ echo "编译平台:${dest_arch}"
 # 替换平台
 sed -i "s/^.*CMAKE_SYSTEM_PROCESSOR.*$/set(CMAKE_SYSTEM_PROCESSOR ${dest_arch})/" ${work_dir}/toolchain.cmake
 
-echo "配置llvm库的路径"
-export LD_LIBRARY_PATH=${llvm_path}/lib:$LD_LIBRARY_PATH
-export LIBRARY_PATH=${llvm_path}/lib:$LIBRARY_PATH
+# echo "配置llvm库的路径"
+# export LD_LIBRARY_PATH=${llvm_path}/lib:$LD_LIBRARY_PATH
+# export LIBRARY_PATH=${llvm_path}/lib:$LIBRARY_PATH
 
-echo "${llvm_path}/lib" >> /etc/ld.so.conf
-ldconfig
-ldconfig -p
+# echo "${llvm_path}/lib" >> /etc/ld.so.conf
+# ldconfig
+# ldconfig -p
 
 # 编译
 # CMAKE_SUPPRESS_DEVELOPER_WARNINGS=ON # 抑制开发者警告
@@ -86,8 +86,8 @@ ldconfig -p
 colcon build \
     --merge-install \
     --mixin release \
-    --cmake-force-configure \
-    --cmake-args -DCMAKE_TOOLCHAIN_FILE=${work_dir}/toolchain.cmake
+    --cmake-force-configure 
+    # --cmake-args -DCMAKE_TOOLCHAIN_FILE=${work_dir}/toolchain.cmake
 
 ls -alh
 echo "end"
