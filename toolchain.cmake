@@ -12,7 +12,7 @@ set(_DEFAULT_RPATH "\$ORIGIN:\$ORIGIN/lib:\$ORIGIN/../lib:\$ORIGIN/..")
 set(CMAKE_EXE_LINKER_FLAGS "-fuse-ld=lld -rtlib=compiler-rt -stdlib=libc++ -unwindlib=libunwind -Wl,-rpath,\"${_DEFAULT_RPATH}\"")
 set(CMAKE_SHARED_LINKER_FLAGS "-fuse-ld=lld -rtlib=compiler-rt -stdlib=libc++ -unwindlib=libunwind -Wl,-rpath,\"${_DEFAULT_RPATH}\"")
 set(CMAKE_CXX_FLAGS "-stdlib=libc++ -Wno-c2y-extensions")
-set(CMAKE_C_FLAGS "-stdlib=libc++ -Wno-c2y-extensions")
+set(CMAKE_C_FLAGS "-Wno-c2y-extensions")
 
 # clang-22
 # -Wno-c2y-extensions 解决下面错误
