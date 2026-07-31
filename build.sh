@@ -32,7 +32,8 @@ while getopts 'r:t:h' OPT; do
   esac
 done
 echo "设置llvm环境"
-export PATH=/opt/llvm/bin:${PATH}
+llvm_path="/opt/llvm"
+export PATH=${llvm_path}/bin:${PATH}
 clang --version
 
 if [[ -z ${ros2_version} ]]; then
@@ -69,6 +70,14 @@ fi
 echo "编译平台:${dest_arch}"
 # 替换平台
 sed -i "s/^.*CMAKE_SYSTEM_PROCESSOR.*$/set(CMAKE_SYSTEM_PROCESSOR ${dest_arch})/" ${work_dir}/toolchain.cmake
+
+echo "配置llvm库的路径"
+export LD_LIBRARY_PATH=${llvm_path}/lib:$LD_LIBRARY_PATH
+export LIBRARY_PATH=${llvm_path}/lib:$LIBRARY_PATH
+
+echo "${llvm_path}/lib" >> /etc/ld.so.conf
+ldconfig
+ldconfig -p
 
 # 编译
 # CMAKE_SUPPRESS_DEVELOPER_WARNINGS=ON # 抑制开发者警告

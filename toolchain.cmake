@@ -9,8 +9,8 @@ set(CMAKE_LINKER lld)
 set(_DEFAULT_RPATH "\$ORIGIN:\$ORIGIN/lib:\$ORIGIN/../lib:\$ORIGIN/..")
 
 # 可选：指定编译器和链接器标志
-set(CMAKE_EXE_LINKER_FLAGS "-fuse-ld=lld -rtlib=compiler-rt -stdlib=libc++ -unwindlib=libunwind -Wl,-rpath,\"${_DEFAULT_RPATH}\"")
-set(CMAKE_SHARED_LINKER_FLAGS "-fuse-ld=lld -rtlib=compiler-rt -stdlib=libc++ -unwindlib=libunwind -Wl,-rpath,\"${_DEFAULT_RPATH}\"")
+set(CMAKE_EXE_LINKER_FLAGS "-fuse-ld=lld -lc++ -lc++abi -rtlib=compiler-rt -stdlib=libc++ -unwindlib=libunwind -Wl,-rpath,\"${_DEFAULT_RPATH}\"")
+set(CMAKE_SHARED_LINKER_FLAGS "-fuse-ld=lld -lc++ -lc++abi -rtlib=compiler-rt -stdlib=libc++ -unwindlib=libunwind -Wl,-rpath,\"${_DEFAULT_RPATH}\"")
 set(CMAKE_CXX_FLAGS "-stdlib=libc++ -Wno-c2y-extensions -Wno-deprecated-literal-operator")
 set(CMAKE_C_FLAGS "-Wno-c2y-extensions -Wno-deprecated-literal-operator")
 
@@ -25,3 +25,6 @@ set(CMAKE_C_FLAGS "-Wno-c2y-extensions -Wno-deprecated-literal-operator")
 # 空格的区别
 # ❌ 旧写法：operator"" _KiB
 # ✅ 新写法：operator""_KiB
+
+# ld.lld: error: undefined symbol
+# -lc++ -lc++abi
