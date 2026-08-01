@@ -30,19 +30,17 @@ jobs:
       - name: 将存储库签出到运行器
         uses: actions/checkout@v4
         with:
-          set-safe-directory: "${GITHUB_WORKSPACE}/build_ros2"
+          set-safe-directory: true
 
       - name: 计算上下文ID
         id: hash
         run: |
           ROS2_COMMIT_ID=$(git ls-remote https://github.com/ros2/ros2.git ${{ env.ROS2_VERSION }}-release | head -n 1 | awk '{print $1}')
-          IMAGE_HASH=$(find . -name "Dockerfile" -o -name "full_compilation_environment.yaml" -o -name "build_docker_env.sh" \
-            -type f -exec md5sum {} \; | sort | md5sum | cut -d' ' -f1)
+          IMAGE_HASH=$(/bin/bash ./calculate_hash.sh Dockerfile full_compilation_environment.yaml build_docker_env.sh)
           IMAGE_KEY="ros2-docker-image-linux-${{ env.ROS2_VERSION }}-${{ matrix.target }}-$IMAGE_HASH-$ROS2_COMMIT_ID"
           IMAGE_NAME="ros2-docker-image-linux-${{ env.ROS2_VERSION }}-${{ matrix.target }}"
 
-          ROS2_HASH=$(find . -name "build.sh" -o -name "build_linux.yaml" -o -name "*.cmake" -o -name "run_build.sh" \
-            -type f -exec md5sum {} \; | sort | md5sum | cut -d' ' -f1)
+          ROS2_HASH=$(/bin/bash ./calculate_hash.sh build.sh build_linux.yaml *.cmake run_build.sh)
           ROS2_KEY="ros2-linux-${{ env.ROS2_VERSION }}-${{ matrix.target }}-$ROS2_HASH-$ROS2_COMMIT_ID"
           ROS2_NAME="ros2-linux-${{ env.ROS2_VERSION }}-${{ matrix.target }}"
 
@@ -50,6 +48,7 @@ jobs:
           echo "image_name=$IMAGE_NAME" >> $GITHUB_OUTPUT
           echo "ros2_key=$ROS2_KEY" >> $GITHUB_OUTPUT
           echo "ros2_name=$ROS2_NAME" >> $GITHUB_OUTPUT
+          echo "ros2_commit_id=$ROS2_COMMIT_ID" >> $GITHUB_OUTPUT
 
           echo "ROS2提交哈希: $ROS2_COMMIT_ID"
           echo "镜像哈希: $IMAGE_KEY"
@@ -117,3 +116,18 @@ jobs:
           path: ${{ steps.hash.outputs.ros2_name }}.tar.bz2
           retention-days: 7
           if-no-files-found: error
+
+      - name: 保存需要传递的参数
+        run: |
+          echo "ros2_version=${{ env.ROS2_VERSION }}" > flow_run_id_arg_${{ matrix.target }}
+          echo "ros2_linux_key=${{ steps.hash.outputs.ros2_key }}" >> flow_run_id_arg_${{ matrix.target }}
+          echo "ros2_linux_name=${{ steps.hash.outputs.ros2_name }}" >> flow_run_id_arg_${{ matrix.target }}
+          echo "ros2_commit_id=${{ steps.hash.outputs.ros2_commit_id }}" >> flow_run_id_arg_${{ matrix.target }}
+
+          echo "提交hash: ${{ github.sha }} 流程ID: ${{ github.run_id }} 传递参数: $(cat flow_run_id_arg_${{ matrix.target }})"
+
+      - name: 流程参数传递
+        uses: actions/cache/save@v6
+        with:
+          path: flow_run_id_arg_${{ matrix.target }}
+          key: ${{ github.sha }}-${{ github.run_id }}

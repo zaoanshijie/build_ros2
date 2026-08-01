@@ -14,13 +14,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          set-safe-directory: "${GITHUB_WORKSPACE}/build_ros2"
+          set-safe-directory: true
 
       - name: 计算哈希
         id: hash
         run: |
-          HASH=$(find . -name "Dockerfile" -o -name "build_image.yaml" -o -name "build_docker_env.sh" \
-            -type f -exec md5sum {} \; | sort | md5sum | cut -d' ' -f1)
+          HASH=$(/bin/bash ./calculate_hash.sh Dockerfile build_image.yaml build_docker_env.sh)
           echo "hash=$HASH" >> $GITHUB_OUTPUT
           echo "计算哈希: $HASH"
 

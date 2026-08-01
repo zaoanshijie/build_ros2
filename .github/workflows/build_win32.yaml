@@ -23,7 +23,7 @@ jobs:
       - name: 将存储库签出到运行器
         uses: actions/checkout@v4
         with:
-          set-safe-directory: "${GITHUB_WORKSPACE}/build_ros2"
+          set-safe-directory: true
 
       - name: 计算哈希
         id: hash

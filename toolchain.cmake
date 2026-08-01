@@ -5,6 +5,8 @@
 # set(CMAKE_CXX_COMPILER clang++)
 # set(CMAKE_LINKER lld)
 
+set(LLVM_INSTALL_DIR "/opt/llvm")
+
 # rpath
 set(_DEFAULT_RPATH "\$ORIGIN:\$ORIGIN/lib:\$ORIGIN/../lib:\$ORIGIN/..")
 set(CMAKE_EXE_LINKER_FLAGS "-Wl,-rpath,\"${_DEFAULT_RPATH}\"")

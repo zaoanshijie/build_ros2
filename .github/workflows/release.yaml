@@ -1,4 +1,4 @@
-name: 编译并导出镜像
+name: 上传Release
 
 on:
   # push:
@@ -14,79 +14,83 @@ jobs:
     strategy:
       matrix:
         target: [amd64, arm64]
-
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
       - uses: actions/checkout@v4
         with:
-          set-safe-directory: "${GITHUB_WORKSPACE}/build_ros2"
+          set-safe-directory: true
 
-      - name: 计算哈希
-        id: hash
+      - name: 获取流程参数文件
+        id: restore
+        uses: actions/cache/restore@v6
+        with:
+          path: flow_run_id_arg_${{ matrix.target }}
+          key: ${{ github.sha }}-${{ github.event.workflow_run.id }}
+          fail-on-cache-miss: true
+
+      - name: 还原参数文件
+        id: args
         run: |
-          ROS2_COMMIT_ID=$(git ls-remote https://github.com/ros2/ros2.git ${{ env.ROS2_VERSION }}-release | head -n 1 | awk '{print $1}')
-          IMAGE_HASH=$(find . -name "Dockerfile" -o -name "full_compilation_environment.yaml" -o -name "build_docker_env.sh" \
-            -type f -exec md5sum {} \; | sort | md5sum | cut -d' ' -f1)
-          IMAGE_KEY="ros2-docker-image-linux-${{ env.ROS2_VERSION }}-${{ matrix.target }}-$IMAGE_HASH-$ROS2_COMMIT_ID"
-          IMAGE_NAME="ros2-docker-image-linux-${{ env.ROS2_VERSION }}-${{ matrix.target }}"
+          # 逐行读取并输出
+          while IFS='=' read -r key value; do
+            # 跳过空行和注释
+            [[ -z "$key" || "$key" =~ ^# ]] && continue
 
-          ROS2_LINUX_HASH=$(find . -name "build.sh" -o -name "build_linux.yaml" -o -name "*.cmake" -o -name "run_build.sh" \
-            -type f -exec md5sum {} \; | sort | md5sum | cut -d' ' -f1)
-          ROS2_LINUX_KEY="ros2-linux-${{ env.ROS2_VERSION }}-${{ matrix.target }}-$ROS2_LINUX_HASH-$ROS2_COMMIT_ID"
-          ROS2_LINUX_NAME="ros2-linux-${{ env.ROS2_VERSION }}-${{ matrix.target }}"
+            # 去除可能的空格
+            key=$(echo "$key" | xargs)
+            value=$(echo "$value" | xargs)
 
-          TAG_HASH=$(find . -name "Dockerfile" -o -name "*.yaml" -o -name "*.sh" -o -name "*.cmake" \
-            -type f -exec md5sum {} \; | sort | md5sum | cut -d' ' -f1)
-          TAG_NAME="ros2-${{ env.ROS2_VERSION }}-$TAG_HASH-$ROS2_COMMIT_ID"
+            # 输出到GITHUB_OUTPUT
+            echo "${key}=${value}" >> $GITHUB_OUTPUT
+            declare "${key}=${value}"
+            echo "流程参数:${key}=${value}"
+          done < flow_run_id_arg_${{ matrix.target }}
 
-          echo "image_key=$IMAGE_KEY" >> $GITHUB_OUTPUT
-          echo "image_name=$IMAGE_NAME" >> $GITHUB_OUTPUT
-          echo "ros2_linux_key=$ROS2_LINUX_KEY" >> $GITHUB_OUTPUT
-          echo "ros2_linux_name=$ROS2_LINUX_NAME" >> $GITHUB_OUTPUT
-          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+          TAG_HASH=$(/bin/bash ./calculate_hash.sh Dockerfile *.yaml *.sh *.cmake -e release.yaml)
+          TAG_NAME="ros2-${ros2_version}-$TAG_HASH-$ros2_commit_id"
+          echo "tag_name=${TAG_NAME}" >> $GITHUB_OUTPUT
 
-          echo "ROS2提交哈希: $ROS2_COMMIT_ID"
-          echo "镜像哈希: $IMAGE_KEY"
-          echo "镜像名称: $IMAGE_NAME"
-          echo "ROS2哈希: $ROS2_LINUX_KEY"
-          echo "ROS2名称: $ROS2_LINUX_NAME"
+          echo "TAG名称:${TAG_NAME}"
 
       - name: 检查docker缓存
         id: docker_cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v6
         with:
-          path: ${{ steps.hash.outputs.image_name }}.tar
-          key: ${{ steps.hash.outputs.image_key }}
+          path: ${{ steps.args.outputs.image_name }}.tar
+          key: ${{ steps.args.outputs.image_key }}
+          fail-on-cache-miss: false
 
       - name: 检查linux ros2缓存
         id: ros2_linux_cache
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v6
         with:
-          path: ${{ steps.hash.outputs.ros2_linux_name }}.tar.bz2
-          key: ${{ steps.hash.outputs.ros2_linux_key }}
+          path: ${{ steps.args.outputs.ros2_linux_name }}.tar.bz2
+          key: ${{ steps.args.outputs.ros2_linux_key }}
+          fail-on-cache-miss: false
 
       - name: 压缩docker镜像
         if: steps.docker_cache.outputs.cache-hit == 'true'
         run: |
-          tar -cavf ${{ steps.hash.outputs.image_name }}.tar.ba2 ${{ steps.hash.outputs.image_name }}.tar
+          tar -cavf ${{ steps.args.outputs.image_name }}.tar.bz2 ${{ steps.args.outputs.image_name }}.tar
 
       - name: 上传Docker镜像
         if: steps.docker_cache.outputs.cache-hit == 'true'
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: ${{ steps.hash.outputs.tag_name }}
-          name: Release ${{ steps.hash.outputs.tag_name }}
+          tag_name: ${{ steps.args.outputs.tag_name }}
+          name: Release ${{ steps.args.outputs.tag_name }}
           prerelease: false
           draft: false
           generate_release_notes: true
-          files: ${{ steps.hash.outputs.image_name }}.tar
+          files: ${{ steps.args.outputs.image_name }}.tar.bz2
 
       - name: 上传Linux Ros2编译结果
         if: steps.ros2_linux_cache.outputs.cache-hit == 'true'
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: ${{ steps.hash.outputs.tag_name }}
-          name: Release ${{ steps.hash.outputs.tag_name }}
+          tag_name: ${{ steps.args.outputs.tag_name }}
+          name: Release ${{ steps.args.outputs.tag_name }}
           prerelease: false
           draft: false
           generate_release_notes: true
-          files: ${{ steps.hash.outputs.ros2_linux_name }}.tar.bz2
+          files: ${{ steps.args.outputs.ros2_linux_name }}.tar.bz2
