@@ -1,8 +1,19 @@
-name: 编译并导出镜像
+name: 创建含源码的完整编译环境
 
 on:
-  # push:
+  push:
   workflow_dispatch:
+    inputs:
+    ros2_version:
+      description: "编译的ros2版本"
+      type: string
+      required: false
+
+env:
+  ROS2_VERSION: ${{ inputs.ros2_version || 'jazzy' }}
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -16,21 +27,29 @@ jobs:
         with:
           set-safe-directory: "${GITHUB_WORKSPACE}/build_ros2"
 
-      - name: 计算哈希
+      - name: 计算上下文ID
         id: hash
         run: |
-          HASH=$(find . -name "Dockerfile" -o -name "build_image.yaml" -o -name "build_docker_env.sh" \
+          ROS2_COMMIT_ID=$(git ls-remote https://github.com/ros2/ros2.git ${{ env.ROS2_VERSION }}-release | head -n 1 | awk '{print $1}')
+          IMAGE_HASH=$(find . -name "Dockerfile" -o -name "full_compilation_environment.yaml" -o -name "build_docker_env.sh" \
             -type f -exec md5sum {} \; | sort | md5sum | cut -d' ' -f1)
-          echo "hash=$HASH" >> $GITHUB_OUTPUT
-          echo "计算哈希: $HASH"
+          IMAGE_KEY="ros2-docker-image-linux-${{ env.ROS2_VERSION }}-${{ matrix.target }}-$IMAGE_HASH-$ROS2_COMMIT_ID"
+          IMAGE_NAME="ros2-docker-image-linux-${{ env.ROS2_VERSION }}-${{ matrix.target }}"
+
+          echo "image_key=$IMAGE_KEY" >> $GITHUB_OUTPUT
+          echo "image_name=$IMAGE_NAME" >> $GITHUB_OUTPUT
+
+          echo "ROS2提交哈希: $ROS2_COMMIT_ID"
+          echo "镜像哈希: $IMAGE_KEY"
+          echo "镜像名称: $IMAGE_NAME"
 
       - name: 检查缓存
         id: cache
         uses: actions/cache@v4
         with:
-          path: ros2-build-image-${{ matrix.target }}.tar
+          path: ${{ steps.hash.outputs.image_name }}.tar
           lookup-only: true
-          key: docker-${{ matrix.target }}-${{ steps.hash.outputs.hash }}
+          key: ${{ steps.hash.outputs.image_key }}
 
       - name: 判断是否需要构建
         id: check
@@ -58,21 +77,22 @@ jobs:
           docker buildx build \
             --platform linux/${{ matrix.target }} \
             -t ros2-build:${{ matrix.target }} \
-            --output type=docker,dest=ros2-build-image-${{ matrix.target }}.tar \
+            --build-arg ROS2_VERSION=${{ env.ROS2_VERSION }} \
+            --output type=docker,dest=${{ steps.hash.outputs.image_name }}.tar \
             .
 
       - name: 保存${{ matrix.arch }}镜像到缓存
         if: steps.check.outputs.skip_build == 'false'
         uses: actions/cache/save@v6
         with:
-          path: ros2-build-image-${{ matrix.target }}.tar
-          key: docker-${{ matrix.target }}-${{ steps.hash.outputs.hash }}
+          path: ${{ steps.hash.outputs.image_name }}.tar
+          key: ${{ steps.hash.outputs.image_key }}
 
       - name: 上传${{ matrix.target }}镜像
         if: steps.check.outputs.skip_build == 'false'
         uses: actions/upload-artifact@v4
         with:
-          name: ros2-build-image-${{ matrix.target }}
-          path: ros2-build-image-${{ matrix.target }}.tar
-          retention-days: 30
+          name: ${{ steps.hash.outputs.image_name }}
+          path: ${{ steps.hash.outputs.image_name }}.tar
+          retention-days: 7
           if-no-files-found: error

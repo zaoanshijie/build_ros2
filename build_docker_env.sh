@@ -6,6 +6,40 @@ script_dir=$(
     pwd
 )
 work_dir=${script_dir}
+# ros2版本
+ros2_version=
+# 源码目录
+ros2_dir="/ros2_work_dir"
+
+
+function print_help() {
+  echo "-r ros2的版本 默认jazzy"
+}
+
+while getopts 'r:h' OPT; do
+  case $OPT in
+  r)
+    ros2_version="${OPTARG}"
+    ;;
+  h)
+    print_help
+    exit 1
+    ;;
+  esac
+done
+
+if [[ -z ${ros2_version} ]]; then
+  ros2_version="jazzy"
+  echo "设置默认的ros2版本: ${ros2_version}"
+fi
+
+cpuinfo=$(lscpu |grep aarch64 || true)
+if [[ -z ${cpuinfo} ]]; then
+  echo "当前架构x86_64"
+else
+  echo "当前架构aarch64"
+fi
+
 
 # https://docs.ros.org/en/jazzy/Installation/Alternatives/Ubuntu-Development-Setup.html
 
@@ -55,29 +89,53 @@ apt install -y \
   ros-dev-tools \
   libssl-dev
 
-# echo "安装clang:${cpuinfo}"
-# cpuinfo=$(lscpu |grep aarch64 || true)
-# clang_path="/opt"
-# if [[ ! -d ${clang_path} ]]; then
-#   mkdir ${clang_path}
-# fi
-# if [[ -z ${cpuinfo} ]]; then
-#   curl -OL https://github.com/llvm/llvm-project/releases/download/llvmorg-22.1.8/LLVM-22.1.8-Linux-X64.tar.xz
-#   mv LLVM-22.1.8-Linux-X64.tar.xz ${clang_path}
-#   cd ${clang_path}
-#   tar -xf LLVM-22.1.8-Linux-X64.tar.xz
-#   ln -s ${clang_path}/LLVM-22.1.8-Linux-X64 ${clang_path}/llvm
-# else
-#   curl -OL https://github.com/llvm/llvm-project/releases/download/llvmorg-22.1.8/LLVM-22.1.8-Linux-ARM64.tar.xz
-#   mv LLVM-22.1.8-Linux-ARM64.tar.xz ${clang_path}
-#   cd ${clang_path}
-#   tar -xf LLVM-22.1.8-Linux-ARM64.tar.xz
-#   ln -s ${clang_path}/LLVM-22.1.8-Linux-ARM64 ${clang_path}/llvm
-# fi
+echo "安装clang:${cpuinfo}"
+llvm_path="/opt"
+llvm_version="22.1.8"
+if [[ ! -d ${llvm_path} ]]; then
+  mkdir ${llvm_path}
+fi
+if [[ -z ${cpuinfo} ]]; then
+  curl -OL https://github.com/llvm/llvm-project/releases/download/llvmorg-${llvm_version}/LLVM-${llvm_version}-Linux-X64.tar.xz
+  mv LLVM-${llvm_version}-Linux-X64.tar.xz ${llvm_path}
+  cd ${llvm_path}
+  tar -xf LLVM-${llvm_version}-Linux-X64.tar.xz
+  ln -s ${llvm_path}/LLVM-${llvm_version}-Linux-X64 ${llvm_path}/llvm
+else
+  curl -OL https://github.com/llvm/llvm-project/releases/download/llvmorg-${llvm_version}/LLVM-${llvm_version}-Linux-ARM64.tar.xz
+  mv LLVM-${llvm_version}-Linux-ARM64.tar.xz ${llvm_path}
+  cd ${llvm_path}
+  tar -xf LLVM-${llvm_version}-Linux-ARM64.tar.xz
+  ln -s ${llvm_path}/LLVM-${llvm_version}-Linux-ARM64 ${llvm_path}/llvm
+fi
 
-# rm -rf ${clang_path}/*.tar.xz
+rm -rf ${llvm_path}/*.tar.xz
 
-# echo "export PATH=${clang_path}/llvm/bin:\$PATH" >> ~/.bashrc
+
+echo "下载源码"
+rm -rf ${ros2_dir}
+mkdir -p ${ros2_dir}/src
+cd ${ros2_dir}
+
+vcs import --input https://raw.githubusercontent.com/ros2/ros2/${ros2_version}-release/ros2.repos src
+
+# 使用 rosdep 安装依赖
+rosdep init
+rosdep update
+rosdep install --from-paths src --ignore-src -y --skip-keys "fastcdr rti-connext-dds-6.0.1 urdfdom_headers"
+
+# Install colcon mixins
+colcon mixin add default https://github.com/colcon/colcon-mixin-repository/raw/master/index.yaml
+colcon mixin update default
+
+# dest_arch="x86_64"
+# if [[ -n ${cpuinfo} ]]; then
+#   dest_arch="aarch64"
+# fi
+# echo "编译平台:${dest_arch}"
+# # 替换平台
+# sed -i "s/^.*CMAKE_SYSTEM_PROCESSOR.*$/set(CMAKE_SYSTEM_PROCESSOR ${dest_arch})/" ${work_dir}/toolchain.cmake
+
 
 apt-get clean
 rm -rf /var/lib/apt/lists/*

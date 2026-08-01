@@ -1,10 +1,6 @@
 name: 编译ros2
 run-name: ${{ github.actor }}
 on:
-  workflow_run:
-    workflows: ["编译并导出镜像"]
-    types:
-      - completed
   # push:
   workflow_dispatch:
     inputs:
@@ -13,7 +9,7 @@ on:
         type: string
         required: false
       rebuild:
-        description: '强制重新生成'
+        description: "强制重新生成"
         required: false
         type: boolean
 env:
@@ -21,81 +17,6 @@ env:
   REBUILD: ${{ inputs.rebuild }}
 
 jobs:
-  build_ros2_ubuntu:
-    runs-on: ubuntu-24.04
-    strategy:
-      matrix:
-        target: [amd64, arm64]
-    steps:
-      - name: 将存储库签出到运行器
-        uses: actions/checkout@v4
-        with:
-          set-safe-directory: "${GITHUB_WORKSPACE}/build_ros2"
-
-      - name: 计算哈希
-        id: hash
-        run: |
-          IMAGE_HASH=$(find . -name "Dockerfile" -o -name "build_image.yaml" -o -name "build_docker_env.sh" \
-            -type f -exec md5sum {} \; | sort | md5sum | cut -d' ' -f1)
-          ROS2_HASH=$(find . -name "build.sh" -o -name "build.yaml" -o -name "build.ps1" -o -name "run_build.sh" \
-            -type f -exec md5sum {} \; | sort | md5sum | cut -d' ' -f1)
-          echo "image_hash=$IMAGE_HASH" >> $GITHUB_OUTPUT
-          echo "ros2_hash=$ROS2_HASH$IMAGE_HASH" >> $GITHUB_OUTPUT
-          echo "IMAGE哈希: $IMAGE_HASH"
-          echo "ROS2哈希: $ROS2_HASH"
-
-      - name: 检查缓存
-        id: cache
-        uses: actions/cache@v4
-        with:
-          path: ros2-${{ env.ROS2_VERSION }}-${{ matrix.target }}.tar.bz2
-          key: ros2-${{ env.ROS2_VERSION }}-${{ matrix.target }}-${{ steps.hash.outputs.ros2_hash }}
-
-      - name: 判断是否需要构建
-        id: check
-        run: |
-          if [[ "$REBUILD" == "true" ]]; then
-            echo "skip_build=false" >> $GITHUB_OUTPUT
-            echo "强制重新编译"
-          elif [[ "${{ steps.cache.outputs.cache-hit }}" == "true" ]]; then
-            echo "skip_build=true" >> $GITHUB_OUTPUT
-            echo "缓存命中，跳过构建"
-          else
-            echo "skip_build=false" >> $GITHUB_OUTPUT
-            echo "需要构建镜像"
-          fi
-
-      - name: 恢复编译镜像
-        id: restore
-        uses: actions/cache/restore@v6
-        with:
-          path: ros2-build-image-${{ matrix.target }}.tar
-          key: docker-${{ matrix.target }}-${{ steps.hash.outputs.image_hash }}
-          fail-on-cache-miss: true
-
-      - name: 设置QEMU
-        if:  steps.check.outputs.skip_build == 'false' && matrix.target == 'arm64'
-        uses: docker/setup-qemu-action@v4
-
-      - name: 设置Buildx
-        if: steps.check.outputs.skip_build == 'false'
-        uses: docker/setup-buildx-action@v4
-
-      - name: 编译并打包构建产物
-        if: steps.check.outputs.skip_build == 'false'
-        run: |
-          echo "FILE_DATE=$(date +'%Y-%m-%d_%H%M')" >> $GITHUB_ENV
-          /bin/bash $GITHUB_WORKSPACE/run_build.sh -r "${ROS2_VERSION}" -i "ros2-build-image-${{ matrix.target }}.tar" -t ${{ matrix.target }}
-
-      - name: 上传所有构建产物
-        if: steps.check.outputs.skip_build == 'false'
-        uses: actions/upload-artifact@v4
-        with:
-          name: ros2-${{ env.ROS2_VERSION }}-${{ matrix.target }}
-          path: ros2-${{ env.ROS2_VERSION }}-${{ matrix.target }}.tar.bz2
-          retention-days: 30
-          if-no-files-found: error
-          
   build_ros2_windows:
     runs-on: windows-2022
     steps:
@@ -110,13 +31,13 @@ jobs:
         run: |
           # 查找文件并计算MD5
           $files = Get-ChildItem -Recurse -Include "build.ps1"
-          
+
           # 计算每个文件的MD5并排序
           # 计算每个文件的MD5，排序后组合
           $hashList = $files | ForEach-Object { 
               Get-FileHash -Path $_.FullName -Algorithm MD5 
           } | Sort-Object Hash | ForEach-Object { $_.Hash }
-          
+
           # 对所有哈希值计算总MD5
           $inputString = $hashList -join "`n"
           $md5Bytes = [System.Text.Encoding]::UTF8.GetBytes($inputString)
@@ -140,7 +61,7 @@ jobs:
         run: |
           $REBUILD = $env:REBUILD
           $CACHE_HIT = "${{ steps.cache.outputs.cache-hit }}"
-          
+
           if ($REBUILD -eq "true") {
             "skip_build=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
             Write-Host "强制重新编译"
@@ -151,7 +72,7 @@ jobs:
             "skip_build=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
             Write-Host "需要构建镜像"
           }
-          
+
       - name: 编译
         if: steps.check.outputs.skip_build == 'false'
         id: windows_build

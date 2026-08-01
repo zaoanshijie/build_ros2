@@ -1,0 +1,119 @@
+name: 编译Linux Ros2
+run-name: ${{ github.actor }}
+on:
+  workflow_run:
+    workflows: ["创建含源码的完整编译环境"]
+    types:
+      - completed
+  # push:
+  workflow_dispatch:
+    inputs:
+      ros2_version:
+        description: "编译的ros2版本"
+        type: string
+        required: false
+      rebuild:
+        description: "强制重新生成"
+        required: false
+        type: boolean
+env:
+  ROS2_VERSION: ${{ inputs.ros2_version || 'jazzy' }}
+  REBUILD: ${{ inputs.rebuild }}
+
+jobs:
+  build_ros2_ubuntu:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        target: [amd64, arm64]
+    steps:
+      - name: 将存储库签出到运行器
+        uses: actions/checkout@v4
+        with:
+          set-safe-directory: "${GITHUB_WORKSPACE}/build_ros2"
+
+      - name: 计算上下文ID
+        id: hash
+        run: |
+          ROS2_COMMIT_ID=$(git ls-remote https://github.com/ros2/ros2.git ${{ env.ROS2_VERSION }}-release | head -n 1 | awk '{print $1}')
+          IMAGE_HASH=$(find . -name "Dockerfile" -o -name "full_compilation_environment.yaml" -o -name "build_docker_env.sh" \
+            -type f -exec md5sum {} \; | sort | md5sum | cut -d' ' -f1)
+          IMAGE_KEY="ros2-docker-image-linux-${{ env.ROS2_VERSION }}-${{ matrix.target }}-$IMAGE_HASH-$ROS2_COMMIT_ID"
+          IMAGE_NAME="ros2-docker-image-linux-${{ env.ROS2_VERSION }}-${{ matrix.target }}"
+
+          ROS2_HASH=$(find . -name "build.sh" -o -name "build_linux.yaml" -o -name "*.cmake" -o -name "run_build.sh" \
+            -type f -exec md5sum {} \; | sort | md5sum | cut -d' ' -f1)
+          ROS2_KEY="ros2-linux-${{ env.ROS2_VERSION }}-${{ matrix.target }}-$ROS2_HASH-$ROS2_COMMIT_ID"
+          ROS2_NAME="ros2-linux-${{ env.ROS2_VERSION }}-${{ matrix.target }}"
+
+          echo "image_key=$IMAGE_KEY" >> $GITHUB_OUTPUT
+          echo "image_name=$IMAGE_NAME" >> $GITHUB_OUTPUT
+          echo "ros2_key=$ROS2_KEY" >> $GITHUB_OUTPUT
+          echo "ros2_name=$ROS2_NAME" >> $GITHUB_OUTPUT
+
+          echo "ROS2提交哈希: $ROS2_COMMIT_ID"
+          echo "镜像哈希: $IMAGE_KEY"
+          echo "镜像名称: $IMAGE_NAME"
+          echo "ROS2哈希: $ROS2_KEY"
+          echo "ROS2名称: $ROS2_NAME"
+
+      - name: 检查ros2缓存
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.hash.outputs.ros2_name }}.tar.bz2
+          lookup-only: true
+          key: ${{ steps.hash.outputs.ros2_key }}
+
+      - name: 判断是否需要构建
+        id: check
+        run: |
+          if [[ "$REBUILD" == "true" ]]; then
+            echo "skip_build=false" >> $GITHUB_OUTPUT
+            echo "强制重新编译"
+          elif [[ "${{ steps.cache.outputs.cache-hit }}" == "true" ]]; then
+            echo "skip_build=true" >> $GITHUB_OUTPUT
+            echo "缓存命中，跳过构建"
+          else
+            echo "skip_build=false" >> $GITHUB_OUTPUT
+            echo "需要构建镜像"
+          fi
+
+      - name: 恢复编译镜像
+        id: restore
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ steps.hash.outputs.image_name }}.tar
+          key: ${{ steps.hash.outputs.image_key }}
+          fail-on-cache-miss: true
+
+      - name: 设置QEMU
+        if: steps.check.outputs.skip_build == 'false' && matrix.target == 'arm64'
+        uses: docker/setup-qemu-action@v4
+
+      - name: 设置Buildx
+        if: steps.check.outputs.skip_build == 'false'
+        uses: docker/setup-buildx-action@v4
+
+      - name: 编译并打包构建产物
+        if: steps.check.outputs.skip_build == 'false'
+        run: |
+          echo "FILE_DATE=$(date +'%Y-%m-%d_%H%M')" >> $GITHUB_ENV
+          /bin/bash $GITHUB_WORKSPACE/run_build.sh -r "${ROS2_VERSION}" -i "${{ steps.hash.outputs.image_name }}.tar" -t ${{ matrix.target }}
+
+          vm ros2.tar.bz2 ${{ steps.hash.outputs.ros2_name }}.tar.bz2
+      - name: 保存编译结果到缓存
+        if: steps.check.outputs.skip_build == 'false'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ steps.hash.outputs.ros2_name }}.tar.bz2
+          key: ${{ steps.hash.outputs.ros2_key }}
+
+      - name: 上传所有构建产物
+        if: steps.check.outputs.skip_build == 'false'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.hash.outputs.ros2_name }}
+          path: ${{ steps.hash.outputs.ros2_name }}.tar.bz2
+          retention-days: 7
+          if-no-files-found: error

@@ -1,18 +1,20 @@
-set(CMAKE_SYSTEM_NAME Linux)
-set(CMAKE_SYSTEM_PROCESSOR aarch64)
+# set(CMAKE_SYSTEM_NAME Linux)
+# set(CMAKE_SYSTEM_PROCESSOR aarch64)
 
-set(CMAKE_C_COMPILER clang)
-set(CMAKE_CXX_COMPILER clang++)
-set(CMAKE_LINKER lld)
+# set(CMAKE_C_COMPILER clang)
+# set(CMAKE_CXX_COMPILER clang++)
+# set(CMAKE_LINKER lld)
 
 # rpath
 set(_DEFAULT_RPATH "\$ORIGIN:\$ORIGIN/lib:\$ORIGIN/../lib:\$ORIGIN/..")
+set(CMAKE_EXE_LINKER_FLAGS "-Wl,-rpath,\"${_DEFAULT_RPATH}\"")
+set(CMAKE_SHARED_LINKER_FLAGS "-Wl,-rpath,\"${_DEFAULT_RPATH}\"")
 
 # 可选：指定编译器和链接器标志
-set(CMAKE_EXE_LINKER_FLAGS "-fuse-ld=lld -lc++ -lc++abi -rtlib=compiler-rt -stdlib=libc++ -unwindlib=libunwind -Wl,-rpath,\"${_DEFAULT_RPATH}\"")
-set(CMAKE_SHARED_LINKER_FLAGS "-fuse-ld=lld -lc++ -lc++abi -rtlib=compiler-rt -stdlib=libc++ -unwindlib=libunwind -Wl,-rpath,\"${_DEFAULT_RPATH}\"")
-set(CMAKE_CXX_FLAGS "-stdlib=libc++ -Wno-c2y-extensions -Wno-deprecated-literal-operator")
-set(CMAKE_C_FLAGS "-Wno-c2y-extensions -Wno-deprecated-literal-operator")
+# set(CMAKE_EXE_LINKER_FLAGS "-fuse-ld=lld -lc++ -lc++abi -rtlib=compiler-rt -stdlib=libc++ -unwindlib=libunwind -Wl,-rpath,\"${_DEFAULT_RPATH}\"")
+# set(CMAKE_SHARED_LINKER_FLAGS "-fuse-ld=lld -lc++ -lc++abi -rtlib=compiler-rt -stdlib=libc++ -unwindlib=libunwind -Wl,-rpath,\"${_DEFAULT_RPATH}\"")
+# set(CMAKE_CXX_FLAGS "-stdlib=libc++ -Wno-c2y-extensions -Wno-deprecated-literal-operator")
+# set(CMAKE_C_FLAGS "-Wno-c2y-extensions -Wno-deprecated-literal-operator")
 
 # clang-22
 # -Wno-c2y-extensions 解决下面错误

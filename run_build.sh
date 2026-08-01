@@ -5,14 +5,14 @@ script_dir=$(
     cd $(dirname $0)
     pwd
 )
-# 工作目录
-work_dir="${script_dir}/ros2"
 # ros2版本
 ros2_version=
 # docker镜像(编译环境)
 build_docker=
 # 目标架构(amd64 arm64)
 build_target=
+# 源码目录
+docker_ros2_dir="/ros2_work_dir"
 
 function print_info() {
   echo "输出编译机器信息"
@@ -62,36 +62,32 @@ if [[ ! -f ${build_docker} ]]; then
 fi
 print_info
 
-# 删除重建工作目录
-rm -rf ${work_dir}
-mkdir -p ${work_dir}
-
 echo "导入 Docker 镜像..."
 docker load --input ${build_docker}
 # 获取导入的镜像名称
 IMAGE_NAME=$(docker images --format "{{.Repository}}:{{.Tag}}" | head -n 1)
 echo "成功导入镜像: $IMAGE_NAME"
+rm -rf ${build_docker}
 
 echo "启动容器:${IMAGE_NAME}"
 docker run -itd \
   --platform linux/${build_target} \
   --name ros2-build-${build_target} \
-  -v ${work_dir}:/workspace \
+  -v ${script_dir}:/workspace \
   ${IMAGE_NAME} \
   /bin/bash
 
 # 等待容器启动
 sleep 5
 
-echo "复制脚本文件到指定目录"
-cp ${script_dir}/build.sh ${work_dir}
-cp ${script_dir}/toolchain.cmake ${work_dir}
-mv *.tar ${work_dir}
-
 echo "执行编译"
 docker exec ros2-build-${build_target} /bin/bash -c "echo '容器运行成功,开始执行${build_target}编译'"
-docker exec ros2-build-${build_target} /bin/bash -c "cd /workspace && /bin/bash build.sh -r ${ros2_version} -t ${build_target}"
+docker exec ros2-build-${build_target} /bin/bash -c "cp -r /workspace/* ${docker_ros2_dir}"
+docker exec ros2-build-${build_target} /bin/bash -c "cd ${docker_ros2_dir} && /bin/bash build.sh -r ${ros2_version} -t ${build_target}"
+docker exec ros2-build-${build_target} /bin/bash -c "cd ${docker_ros2_dir} && tar -cavf ros2.tar.bz2 install && mv ros2.tar.bz2 /workspace"
+
 # 清理容器
 docker stop ros2-build-${build_target}
 docker rm ros2-build-${build_target}
 
+mv ros2.tar.bz2 ${script_dir}
