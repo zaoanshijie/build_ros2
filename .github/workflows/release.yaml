@@ -52,6 +52,16 @@ jobs:
 
           echo "TAG名称:${TAG_NAME}"
 
+          # 处理一下变量不存在的情况
+          if [ -z "$image_name" ]; then
+              echo "image_name=none" >> $GITHUB_OUTPUT
+              echo "image_key=none" >> $GITHUB_OUTPUT
+          fi
+          if [ -z "$ros2_linux_name" ]; then
+              echo "ros2_linux_name=none" >> $GITHUB_OUTPUT
+              echo "ros2_linux_key=none" >> $GITHUB_OUTPUT
+          fi
+
       - name: 检查docker缓存
         id: docker_cache
         uses: actions/cache/restore@v6

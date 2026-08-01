@@ -101,7 +101,7 @@ jobs:
           echo "FILE_DATE=$(date +'%Y-%m-%d_%H%M')" >> $GITHUB_ENV
           /bin/bash $GITHUB_WORKSPACE/run_build.sh -r "${ROS2_VERSION}" -i "${{ steps.hash.outputs.image_name }}.tar" -t ${{ matrix.target }}
 
-          vm ros2.tar.bz2 ${{ steps.hash.outputs.ros2_name }}.tar.bz2
+          mv ros2.tar.bz2 ${{ steps.hash.outputs.ros2_name }}.tar.bz2
       - name: 保存编译结果到缓存
         if: steps.check.outputs.skip_build == 'false'
         uses: actions/cache/save@v6
