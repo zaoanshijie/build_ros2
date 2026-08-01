@@ -85,9 +85,7 @@ docker exec ros2-build-${build_target} /bin/bash -c "echo '容器运行成功,�
 docker exec ros2-build-${build_target} /bin/bash -c "cp -r /workspace/* ${docker_ros2_dir}"
 docker exec ros2-build-${build_target} /bin/bash -c "cd ${docker_ros2_dir} && /bin/bash build.sh -r ${ros2_version} -t ${build_target}"
 docker exec ros2-build-${build_target} /bin/bash -c "cd ${docker_ros2_dir} && tar -cavf ros2.tar.bz2 install && mv ros2.tar.bz2 /workspace"
-
+docker exec ros2-build-${build_target} /bin/bash -c "echo '${build_target}编译执行完毕'"
 # 清理容器
 docker stop ros2-build-${build_target}
 docker rm ros2-build-${build_target}
-
-mv ros2.tar.bz2 ${script_dir}
