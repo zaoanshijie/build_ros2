@@ -26,6 +26,7 @@ jobs:
     strategy:
       matrix:
         target: [amd64, arm64]
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: 将存储库签出到运行器
         uses: actions/checkout@v4
