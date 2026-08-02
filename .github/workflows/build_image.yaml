@@ -60,7 +60,7 @@ jobs:
             --output type=docker,dest=ros2-build-image-${{ matrix.target }}.tar \
             .
 
-      - name: 保存${{ matrix.arch }}镜像到缓存
+      - name: 保存${{ matrix.target }}镜像到缓存
         if: steps.check.outputs.skip_build == 'false'
         uses: actions/cache/save@v6
         with:

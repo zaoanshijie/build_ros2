@@ -15,7 +15,13 @@ jobs:
       contents: write
     strategy:
       matrix:
+        docker_base: [ubuntu:24.04, ubuntu:22.04]
         target: [amd64, arm64]
+        exclude:
+          # 这个会段错误 暂未解决
+          - docker_base: ubuntu:22.04
+            target: arm64
+
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
       - uses: actions/checkout@v4
@@ -26,8 +32,8 @@ jobs:
         id: restore
         uses: actions/cache/restore@v6
         with:
-          path: flow_run_id_arg_${{ matrix.target }}
-          key: ${{ github.sha }}-${{ github.event.workflow_run.id }}
+          path: flow_run_id_arg
+          key: ${{ github.sha }}-${{ github.event.workflow_run.id }}-${{ matrix.docker_base }}-${{ matrix.target }}
           fail-on-cache-miss: true
 
       - name: 还原参数文件
@@ -46,10 +52,10 @@ jobs:
             echo "${key}=${value}" >> $GITHUB_OUTPUT
             declare "${key}=${value}"
             echo "流程参数:${key}=${value}"
-          done < flow_run_id_arg_${{ matrix.target }}
+          done < flow_run_id_arg
 
           TAG_HASH=$(/bin/bash ./calculate_hash.sh Dockerfile *.yaml *.sh *.cmake -e release.yaml)
-          TAG_NAME="ros2-${ros2_version}-$TAG_HASH-$ros2_commit_id"
+          TAG_NAME="ros2-${ros2_version}-${TAG_HASH}-${ros2_commit_id}"
           echo "tag_name=${TAG_NAME}" >> $GITHUB_OUTPUT
 
           echo "TAG名称:${TAG_NAME}"

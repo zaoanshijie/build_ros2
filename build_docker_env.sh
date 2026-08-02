@@ -40,6 +40,16 @@ else
   echo "当前架构aarch64"
 fi
 
+apt update -y
+apt dist-upgrade -y
+
+# 阻止交互式命令 使用默认的
+export DEBIAN_FRONTEND=noninteractive
+
+# 时区
+apt -y install tzdata
+ln -fs /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+dpkg-reconfigure -f noninteractive tzdata
 
 # https://docs.ros.org/en/jazzy/Installation/Alternatives/Ubuntu-Development-Setup.html
 
@@ -47,8 +57,6 @@ echo "设定locale"
 
 locale  # check for UTF-8
 
-apt update -y
-apt dist-upgrade -y
 apt install locales -y
 
 locale-gen en_US en_US.UTF-8
@@ -72,7 +80,7 @@ dpkg -i ${work_dir}/ros2-apt-source.deb
 
 apt update -y
 
-echo "安装开发工具"
+echo "安装开发工具: $(lsb_release -r)"
 apt install -y \
   python3-flake8-blind-except \
   python3-flake8-class-newline \

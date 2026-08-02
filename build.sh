@@ -57,7 +57,9 @@ echo "编译平台:${dest_arch}"
 # CMAKE_SUPPRESS_DEVELOPER_WARNINGS=ON # 抑制开发者警告
 # CMAKE_WARN_DEPRECATED=OFF # 是否对已弃用的功能发出警告
 # --mixin release 等价 --cmake-args -DCMAKE_BUILD_TYPE=Release
+export MAKEFLAGS="-j4"
 colcon build \
+    --parallel-workers 2 \
     --merge-install \
     --mixin release \
     --cmake-force-configure \

@@ -1,6 +1,7 @@
-FROM ubuntu:24.04
-
 ARG ROS2_VERSION=jazzy
+ARG BASE_IMAGE=ubuntu:24.04
+
+FROM ${BASE_IMAGE}
 
 # 将脚本复制进镜像
 COPY build_docker_env.sh /tmp/build.sh

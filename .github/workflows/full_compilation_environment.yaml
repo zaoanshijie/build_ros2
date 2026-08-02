@@ -3,21 +3,20 @@ name: 创建含源码的完整编译环境
 on:
   push:
   workflow_dispatch:
-    inputs:
-      ros2_version:
-        description: "编译的ros2版本"
-        type: string
-        required: false
-
-env:
-  ROS2_VERSION: ${{ inputs.ros2_version || 'jazzy' }}
 
 jobs:
   build:
     runs-on: ubuntu-24.04
     strategy:
       matrix:
+        ros2_version: [jazzy]
+        docker_base: [ubuntu:22.04, ubuntu:24.04]
         target: [amd64, arm64]
+        exclude:
+          # 这个会段错误 暂未解决
+          - docker_base: ubuntu:22.04
+            target: arm64
+            ros2_version: jazzy
 
     steps:
       - uses: actions/checkout@v4
@@ -25,12 +24,14 @@ jobs:
           set-safe-directory: true
 
       - name: 计算上下文ID
-        id: hash
+        id: cid
         run: |
-          ROS2_COMMIT_ID=$(git ls-remote https://github.com/ros2/ros2.git ${{ env.ROS2_VERSION }}-release | head -n 1 | awk '{print $1}')
+          DOCKER_BASE="${{ matrix.docker_base }}"
+          DOCKER_BASE="${DOCKER_BASE//:/_}"
+          ROS2_COMMIT_ID=$(git ls-remote https://github.com/ros2/ros2.git ${{ matrix.ros2_version }}-release | head -n 1 | awk '{print $1}')
           IMAGE_HASH=$(/bin/bash ./calculate_hash.sh Dockerfile full_compilation_environment.yaml build_docker_env.sh)
-          IMAGE_KEY="ros2-docker-image-linux-${{ env.ROS2_VERSION }}-${{ matrix.target }}-$IMAGE_HASH-$ROS2_COMMIT_ID"
-          IMAGE_NAME="ros2-docker-image-linux-${{ env.ROS2_VERSION }}-${{ matrix.target }}"
+          IMAGE_KEY="ros2-docker-image-${DOCKER_BASE}-${{ matrix.ros2_version }}-${{ matrix.target }}-${IMAGE_HASH}-${ROS2_COMMIT_ID}"
+          IMAGE_NAME="ros2-docker-image-${DOCKER_BASE}-${{ matrix.ros2_version }}-${{ matrix.target }}"
 
           echo "image_key=$IMAGE_KEY" >> $GITHUB_OUTPUT
           echo "image_name=$IMAGE_NAME" >> $GITHUB_OUTPUT
@@ -44,9 +45,9 @@ jobs:
         id: cache
         uses: actions/cache@v4
         with:
-          path: ${{ steps.hash.outputs.image_name }}.tar.zst
+          path: ${{ steps.cid.outputs.image_name }}.tar.zst
           lookup-only: true
-          key: ${{ steps.hash.outputs.image_key }}
+          key: ${{ steps.cid.outputs.image_key }}
 
       - name: 判断是否需要构建
         id: check
@@ -59,11 +60,13 @@ jobs:
             echo "需要构建镜像"
           fi
 
-      - name: Set up QEMU
+      - name: 设置QEMU
         if: steps.check.outputs.skip_build == 'false' && matrix.target == 'arm64'
         uses: docker/setup-qemu-action@v4
+        with:
+          reset: true
 
-      - name: Set up Docker Buildx
+      - name: 设置Buildx
         if: steps.check.outputs.skip_build == 'false'
         uses: docker/setup-buildx-action@v4
 
@@ -74,37 +77,38 @@ jobs:
           docker buildx build \
             --platform linux/${{ matrix.target }} \
             -t ros2-build:${{ matrix.target }} \
-            --build-arg ROS2_VERSION=${{ env.ROS2_VERSION }} \
-            --output type=docker,dest=${{ steps.hash.outputs.image_name }}.tar.zst,compression=zstd,compression-level=9 \
+            --build-arg ROS2_VERSION=${{ matrix.ros2_version }} \
+            --build-arg BASE_IMAGE=${{ matrix.docker_base }} \
+            --output type=docker,dest=${{ steps.cid.outputs.image_name }}.tar.zst,compression=zstd,compression-level=9 \
             .
 
-      - name: 保存${{ matrix.arch }}镜像到缓存
+      - name: 保存${{ matrix.target }}镜像到缓存
         if: steps.check.outputs.skip_build == 'false'
         uses: actions/cache/save@v6
         with:
-          path: ${{ steps.hash.outputs.image_name }}.tar.zst
-          key: ${{ steps.hash.outputs.image_key }}
+          path: ${{ steps.cid.outputs.image_name }}.tar.zst
+          key: ${{ steps.cid.outputs.image_key }}
 
       - name: 上传${{ matrix.target }}镜像
         if: steps.check.outputs.skip_build == 'false'
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.hash.outputs.image_name }}
-          path: ${{ steps.hash.outputs.image_name }}.tar.zst
+          name: ${{ steps.cid.outputs.image_name }}
+          path: ${{ steps.cid.outputs.image_name }}.tar.zst
           retention-days: 7
           if-no-files-found: error
 
       - name: 保存需要传递的参数
         run: |
-          echo "ros2_version=${{ env.ROS2_VERSION }}" > flow_run_id_arg_${{ matrix.target }}
-          echo "image_key=${{ steps.hash.outputs.image_key }}" >> flow_run_id_arg_${{ matrix.target }}
-          echo "image_name=${{ steps.hash.outputs.image_name }}" >> flow_run_id_arg_${{ matrix.target }}
-          echo "ros2_commit_id=${{ steps.hash.outputs.ros2_commit_id }}" >> flow_run_id_arg_${{ matrix.target }}
+          echo "ros2_version=${{ matrix.ros2_version }}" > flow_run_id_arg
+          echo "image_key=${{ steps.cid.outputs.image_key }}" >> flow_run_id_arg
+          echo "image_name=${{ steps.cid.outputs.image_name }}" >> flow_run_id_arg
+          echo "ros2_commit_id=${{ steps.cid.outputs.ros2_commit_id }}" >> flow_run_id_arg
 
-          echo "提交hash: ${{ github.sha }} 流程ID: ${{ github.run_id }} 传递参数: $(cat flow_run_id_arg_${{ matrix.target }})"
+          echo "提交hash: ${{ github.sha }} 流程ID: ${{ github.run_id }} 传递参数: $(cat flow_run_id_arg)"
 
       - name: 流程参数传递
         uses: actions/cache/save@v6
         with:
-          path: flow_run_id_arg_${{ matrix.target }}
-          key: ${{ github.sha }}-${{ github.run_id }}
+          path: flow_run_id_arg
+          key: ${{ github.sha }}-${{ github.run_id }}-${{ matrix.docker_base }}-${{ matrix.target }}

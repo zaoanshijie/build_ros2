@@ -1,5 +1,4 @@
 name: 编译ros2
-run-name: ${{ github.actor }}
 on:
   # push:
   workflow_dispatch:
