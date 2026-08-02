@@ -28,7 +28,7 @@ jobs:
         uses: actions/cache/restore@v6
         with:
           path: flow_run_id_arg
-          key: docker-${{ github.sha }}-${{ github.event.workflow_run.id }}-${{ matrix.docker_base }}-${{ matrix.target }}
+          key: ${{ github.sha }}-${{ github.event.workflow_run.id }}-${{ matrix.docker_base }}-${{ matrix.target }}
           fail-on-cache-miss: true
 
       - name: 还原参数文件
@@ -73,12 +73,15 @@ jobs:
           ROS2_COMMIT_ID=${{ steps.in_args.outputs.ros2_commit_id }}
           IMAGE_NAME=${{ steps.in_args.outputs.image_name }}
           IMAGE_KEY=${{ steps.in_args.outputs.image_key }}
+          # 上下文hash
+          CONTEXT_HASH=$(/bin/bash ./calculate_hash.sh Dockerfile *.yaml *.sh *.cmake)
 
           # ros2的编译是和docker镜像有关和本身编译脚本有关
-          ROS2_HASH=$(/bin/bash ./calculate_hash.sh Dockerfile *.yaml *.sh *.cmake -e release.yaml)
+          ROS2_HASH=${CONTEXT_HASH}
           ROS2_KEY="ros2-${DOCKER_BASE}-${ROS2_VERSION}-${{ matrix.target }}-${ROS2_HASH}-${ROS2_COMMIT_ID}"
           ROS2_NAME="ros2-${DOCKER_BASE}-${ROS2_VERSION}-${{ matrix.target }}"
 
+          echo "context_hash=$CONTEXT_HASH" >> $GITHUB_OUTPUT
           echo "image_key=$IMAGE_KEY" >> $GITHUB_OUTPUT
           echo "image_name=$IMAGE_NAME" >> $GITHUB_OUTPUT
           echo "ros2_key=$ROS2_KEY" >> $GITHUB_OUTPUT
@@ -165,4 +168,4 @@ jobs:
         uses: actions/cache/save@v6
         with:
           path: flow_run_id_arg
-          key: ${{ github.sha }}-${{ github.run_id }}-${{ matrix.docker_base }}-${{ matrix.target }}
+          key: ${{ steps.cid.outputs.context_hash }}-${{ matrix.docker_base }}-${{ matrix.target }}

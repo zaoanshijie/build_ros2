@@ -32,7 +32,10 @@ jobs:
           IMAGE_HASH=$(/bin/bash ./calculate_hash.sh Dockerfile full_compilation_environment.yaml build_docker_env.sh)
           IMAGE_KEY="ros2-docker-image-${DOCKER_BASE}-${{ matrix.ros2_version }}-${{ matrix.target }}-${IMAGE_HASH}-${ROS2_COMMIT_ID}"
           IMAGE_NAME="ros2-docker-image-${DOCKER_BASE}-${{ matrix.ros2_version }}-${{ matrix.target }}"
+          # 上下文hash
+          CONTEXT_HASH=$(/bin/bash ./calculate_hash.sh Dockerfile *.yaml *.sh *.cmake)
 
+          echo "context_hash=$CONTEXT_HASH" >> $GITHUB_OUTPUT
           echo "image_key=$IMAGE_KEY" >> $GITHUB_OUTPUT
           echo "image_name=$IMAGE_NAME" >> $GITHUB_OUTPUT
           echo "ros2_commit_id=$ROS2_COMMIT_ID" >> $GITHUB_OUTPUT
@@ -111,4 +114,4 @@ jobs:
         uses: actions/cache/save@v6
         with:
           path: flow_run_id_arg
-          key: ${{ github.sha }}-${{ github.run_id }}-${{ matrix.docker_base }}-${{ matrix.target }}
+          key: ${{ steps.cid.outputs.context_hash }}-${{ matrix.docker_base }}-${{ matrix.target }}
