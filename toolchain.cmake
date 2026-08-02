@@ -5,7 +5,8 @@
 # set(CMAKE_CXX_COMPILER clang++)
 # set(CMAKE_LINKER lld)
 
-set(LLVM_INSTALL_DIR "/opt/llvm")
+set(LLVM_INSTALL_DIR "/opt/llvm//lib/cmake/llvm")
+set(CLANG_INSTALL_DIR "/opt/llvm//lib/cmake/clang")
 
 # rpath
 set(_DEFAULT_RPATH "\$ORIGIN:\$ORIGIN/lib:\$ORIGIN/../lib:\$ORIGIN/..")
