@@ -12,9 +12,6 @@ on:
 env:
   ROS2_VERSION: ${{ inputs.ros2_version || 'jazzy' }}
 
-permissions:
-  contents: write
-
 jobs:
   build:
     runs-on: ubuntu-24.04
@@ -47,7 +44,7 @@ jobs:
         id: cache
         uses: actions/cache@v4
         with:
-          path: ${{ steps.hash.outputs.image_name }}.tar
+          path: ${{ steps.hash.outputs.image_name }}.tar.zst
           lookup-only: true
           key: ${{ steps.hash.outputs.image_key }}
 
@@ -78,14 +75,14 @@ jobs:
             --platform linux/${{ matrix.target }} \
             -t ros2-build:${{ matrix.target }} \
             --build-arg ROS2_VERSION=${{ env.ROS2_VERSION }} \
-            --output type=docker,dest=${{ steps.hash.outputs.image_name }}.tar \
+            --output type=docker,dest=${{ steps.hash.outputs.image_name }}.tar.zst,compression=zstd,compression-level=9 \
             .
 
       - name: 保存${{ matrix.arch }}镜像到缓存
         if: steps.check.outputs.skip_build == 'false'
         uses: actions/cache/save@v6
         with:
-          path: ${{ steps.hash.outputs.image_name }}.tar
+          path: ${{ steps.hash.outputs.image_name }}.tar.zst
           key: ${{ steps.hash.outputs.image_key }}
 
       - name: 上传${{ matrix.target }}镜像
@@ -93,7 +90,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.hash.outputs.image_name }}
-          path: ${{ steps.hash.outputs.image_name }}.tar
+          path: ${{ steps.hash.outputs.image_name }}.tar.zst
           retention-days: 7
           if-no-files-found: error
 

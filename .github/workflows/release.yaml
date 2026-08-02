@@ -68,7 +68,7 @@ jobs:
         id: docker_cache
         uses: actions/cache/restore@v6
         with:
-          path: ${{ steps.args.outputs.image_name }}.tar
+          path: ${{ steps.args.outputs.image_name }}.tar.zst
           key: ${{ steps.args.outputs.image_key }}
           fail-on-cache-miss: false
 
@@ -83,7 +83,8 @@ jobs:
       - name: 压缩docker镜像
         if: steps.docker_cache.outputs.cache-hit == 'true'
         run: |
-          tar -cavf ${{ steps.args.outputs.image_name }}.tar.bz2 ${{ steps.args.outputs.image_name }}.tar
+          split -b 1900M ${{ steps.args.outputs.image_name }}.tar.zst ${{ steps.args.outputs.image_name }}-part-
+          rm -rf ${{ steps.args.outputs.image_name }}.tar.zst
 
       - name: 上传Docker镜像
         if: steps.docker_cache.outputs.cache-hit == 'true'
@@ -94,7 +95,7 @@ jobs:
           prerelease: false
           draft: false
           generate_release_notes: true
-          files: ${{ steps.args.outputs.image_name }}.tar.bz2
+          files: ${{ steps.args.outputs.image_name }}-part-*
 
       - name: 上传Linux Ros2编译结果
         if: steps.ros2_linux_cache.outputs.cache-hit == 'true'

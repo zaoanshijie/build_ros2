@@ -80,10 +80,11 @@ jobs:
           fi
 
       - name: 恢复编译镜像
+        if: steps.check.outputs.skip_build == 'false'
         id: restore
         uses: actions/cache/restore@v6
         with:
-          path: ${{ steps.hash.outputs.image_name }}.tar
+          path: ${{ steps.hash.outputs.image_name }}.tar.zst
           key: ${{ steps.hash.outputs.image_key }}
           fail-on-cache-miss: true
 
@@ -99,7 +100,7 @@ jobs:
         if: steps.check.outputs.skip_build == 'false'
         run: |
           echo "FILE_DATE=$(date +'%Y-%m-%d_%H%M')" >> $GITHUB_ENV
-          /bin/bash $GITHUB_WORKSPACE/run_build.sh -r "${ROS2_VERSION}" -i "${{ steps.hash.outputs.image_name }}.tar" -t ${{ matrix.target }}
+          /bin/bash $GITHUB_WORKSPACE/run_build.sh -r "${ROS2_VERSION}" -i "${{ steps.hash.outputs.image_name }}.tar.zst" -t ${{ matrix.target }}
 
           mv ros2.tar.bz2 ${{ steps.hash.outputs.ros2_name }}.tar.bz2
       - name: 保存编译结果到缓存
