@@ -1,7 +1,7 @@
-name: 编译LinuxRos2
+name: 编译linux_jazzy_x64
 on:
   workflow_run:
-    workflows: ["创建含源码的完整编译环境"]
+    workflows: ["创建含源码的完整编译环境(x64)"]
     types:
       - completed
 
@@ -14,12 +14,7 @@ jobs:
       matrix:
         ros2_version: [jazzy]
         docker_base: [ubuntu:24.04, ubuntu:22.04]
-        target: [amd64, arm64]
-        exclude:
-          # 这个会段错误 暂未解决
-          - docker_base: ubuntu:22.04
-            target: arm64
-            ros2_version: jazzy
+        target: [amd64]
 
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
@@ -149,12 +144,6 @@ jobs:
           else
             echo "跳过文件校验"
           fi
-
-      - name: 设置QEMU
-        if: steps.check.outputs.skip_build == 'false' && matrix.target == 'arm64'
-        uses: docker/setup-qemu-action@v4
-        with:
-          reset: true
 
       - name: 设置Buildx
         if: steps.check.outputs.skip_build == 'false'

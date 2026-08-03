@@ -1,4 +1,4 @@
-name: 创建含源码的完整编译环境
+name: 创建含源码的完整编译环境(x64)
 
 on:
   push:
@@ -13,12 +13,7 @@ jobs:
       matrix:
         ros2_version: [jazzy]
         docker_base: [ubuntu:22.04, ubuntu:24.04]
-        target: [amd64, arm64]
-        exclude:
-          # 这个会段错误 暂未解决
-          - docker_base: ubuntu:22.04
-            target: arm64
-            ros2_version: jazzy
+        target: [amd64]
 
     steps:
       - uses: actions/checkout@v4
@@ -65,12 +60,6 @@ jobs:
             echo "skip_build=false" >> $GITHUB_OUTPUT
             echo "需要构建镜像"
           fi
-
-      - name: 设置QEMU
-        if: steps.check.outputs.skip_build == 'false' && matrix.target == 'arm64'
-        uses: docker/setup-qemu-action@v4
-        with:
-          reset: true
 
       - name: 设置Buildx
         if: steps.check.outputs.skip_build == 'false'
