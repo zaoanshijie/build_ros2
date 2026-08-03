@@ -16,10 +16,13 @@ function print_help() {
   echo "-r ros2的版本 默认jazzy"
 }
 
-while getopts 'r:h' OPT; do
+while getopts 'r:t:h' OPT; do
   case $OPT in
   r)
     ros2_version="${OPTARG}"
+    ;;
+  t)
+    build_target="${OPTARG}"
     ;;
   h)
     print_help
