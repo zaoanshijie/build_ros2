@@ -74,6 +74,7 @@ jobs:
           TAG_NAME="ros2-$(date +'%Y-%m-%d_%H%M')"
           TAG_URL="https://api.github.com/repos/${{ github.repository }}/releases/tags/${TAG_KEY}"
           ROS2_NAME="ros2-${DOCKER_BASE}-${{ matrix.ros2_version }}-${{ matrix.target }}"
+          DEP_DATA="dep-${DOCKER_BASE}-${{ matrix.ros2_version }}-${{ matrix.target }}"
 
 
           echo "context_hash=$CONTEXT_HASH" >> $GITHUB_OUTPUT
@@ -81,9 +82,11 @@ jobs:
           echo "tag_key=${TAG_KEY}" >> $GITHUB_OUTPUT
           echo "tag_name=${TAG_NAME}" >> $GITHUB_OUTPUT
           echo "tag_url=${TAG_URL}" >> $GITHUB_OUTPUT
+          echo "dep_data=${DEP_DATA}" >> $GITHUB_OUTPUT
 
           echo "ROS2提交哈希: $ROS2_COMMIT_ID"
           echo "编译名称: $ROS2_NAME"
+          echo "编译名称: $DEP_DATA"
           echo "TAG哈希:${TAG_KEY}"
           echo "TAG名称:${TAG_NAME}"
           echo "TAG URL:${TAG_URL}"
@@ -154,6 +157,7 @@ jobs:
         run: |
           /bin/bash $GITHUB_WORKSPACE/run_build.sh -r "${{ matrix.ros2_version }}" -i "${{ steps.cid.outputs.image_name }}.tar.zst" -t ${{ matrix.target }}
 
+          mv dep_data.txt  ${{ steps.cid.outputs.dep_data}}.txt
           mv ros2.tar.bz2 ${{ steps.cid.outputs.ros2_name }}.tar.bz2
 
           sha256sum ${{ steps.cid.outputs.ros2_name }}.tar.bz2 > ${{ steps.cid.outputs.ros2_name }}.tar.bz2.sha256
@@ -169,6 +173,7 @@ jobs:
           generate_release_notes: true
           files: |
             ${{ steps.cid.outputs.ros2_name }}.tar.bz2
+            ${{ steps.cid.outputs.dep_data}}.txt
             *.sha256
       # - name: 保存编译结果到缓存
       #   if: steps.check.outputs.skip_build == 'false'

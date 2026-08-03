@@ -7,13 +7,14 @@ script_dir=$(
 )
 # ros2版本
 ros2_version=
-# 目标架构(amd64 arm64)
+# 目标架构(amd64 aarch64)
 build_target=
 # 源码目录
 docker_ros2_dir="/ros2_work_dir"
 
 function print_help() {
   echo "-r ros2的版本 默认jazzy"
+  echo "-t 目标架构(amd64 aarch64)"
 }
 
 while getopts 'r:t:h' OPT; do
@@ -41,7 +42,7 @@ fi
 cd ${docker_ros2_dir}
 
 dest_arch="x86_64"
-if [[ ${build_target} == "arm64" ]]; then
+if [[ ${build_target} == "aarch64" ]]; then
   dest_arch="aarch64"
 fi
 echo "编译平台:${dest_arch}"

@@ -130,12 +130,15 @@ vcs import --input https://raw.githubusercontent.com/ros2/ros2/${ros2_version}-r
 # 使用 rosdep 安装依赖
 rosdep init
 rosdep update
+# 获取有哪些依赖
+dep_data=$(rosdep install --from-paths src --ignore-src -y --skip-keys "fastcdr rti-connext-dds-6.0.1 urdfdom_headers" -s)
 rosdep install --from-paths src --ignore-src -y --skip-keys "fastcdr rti-connext-dds-6.0.1 urdfdom_headers"
 
 # Install colcon mixins
 colcon mixin add default https://github.com/colcon/colcon-mixin-repository/raw/master/index.yaml
 colcon mixin update default
 
+echo "${dep_data}" > dep_data.txt
 # dest_arch="x86_64"
 # if [[ -n ${cpuinfo} ]]; then
 #   dest_arch="aarch64"
