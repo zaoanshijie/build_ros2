@@ -7,14 +7,14 @@ script_dir=$(
 )
 # ros2版本
 ros2_version=
-# 目标架构(amd64 aarch64)
+# 目标架构(x86_64 aarch64)
 build_target=
 # 源码目录
 docker_ros2_dir="/ros2_work_dir"
 
 function print_help() {
   echo "-r ros2的版本 默认jazzy"
-  echo "-t 目标架构(amd64 aarch64)"
+  echo "-t 目标架构(x86_64 aarch64)"
 }
 
 while getopts 'r:t:h' OPT; do

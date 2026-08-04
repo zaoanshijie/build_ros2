@@ -13,7 +13,7 @@ jobs:
     strategy:
       matrix:
         ros2_version: [jazzy]
-        os: [ubuntu:24.04, ubuntu:22.04]
+        os: [ubuntu-24.04, ubuntu-22.04]
     runs-on: ${{ matrix.os }}-arm
 
     steps:
@@ -22,15 +22,19 @@ jobs:
         with:
           set-safe-directory: true
 
+      - name: 脚本准备
+        run: |
+          cp ./script/*.sh  .
+          cp -r ./script/${{ matrix.target }}_linux/*  .
+
       - name: 计算编译参数
         id: cid
         run: |
 
           RUN_OS="${{ matrix.os }}"
           RUN_OS="${RUN_OS//-/_}"
-          CONTEXT_HASH=$(/bin/bash ./calculate_hash.sh Dockerfile *.yaml *.sh *.cmake)
           ROS2_COMMIT_ID=$(git ls-remote https://github.com/ros2/ros2.git ${{ matrix.ros2_version }}-release | head -n 1 | awk '{print $1}')
-          TAG_KEY="${CONTEXT_HASH}-${ROS2_COMMIT_ID}"
+          TAG_KEY="${{ github.sha }}-${ROS2_COMMIT_ID}"
           TAG_NAME="ros2-$(date +'%Y-%m-%d_%H%M')"
           TAG_URL="https://api.github.com/repos/${{ github.repository }}/releases/tags/${TAG_KEY}"
           ROS2_NAME="ros2-${RUN_OS}-${{ matrix.ros2_version }}-aarch64"
@@ -65,8 +69,8 @@ jobs:
         if: steps.check.outputs.skip_build == 'false'
         run: |
           # 先创建环境
-          /bin/bash build_docker_env.sh
-          /bin/bash $GITHUB_WORKSPACE/build.sh -r "${{ matrix.ros2_version }}" -t aarch64
+          sudo -E /bin/bash $GITHUB_WORKSPACE/build.sh -r "${{ matrix.ros2_version }}"
+          sudo mv $GITHUB_WORKSPACE/ros2/install $GITHUB_WORKSPACE
 
           tar -cavf ${{ steps.cid.outputs.ros2_name }}.tar.bz2 install
           sha256sum ${{ steps.cid.outputs.ros2_name }}.tar.bz2 > ${{ steps.cid.outputs.ros2_name }}.tar.bz2.sha256

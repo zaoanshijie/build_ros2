@@ -25,6 +25,7 @@ EOF
 EXCLUDE_PATTERNS=()
 FILE_PATTERNS=()
 HASH_METHOD="md5"
+WORK_DIR="."
 
 # 解析参数
 while [[ $# -gt 0 ]]; do
@@ -41,6 +42,10 @@ while [[ $# -gt 0 ]]; do
             HASH_METHOD="$2"
             shift 2
             ;;
+        -w|--work)
+            WORK_DIR="$2"
+            shift 2
+            ;;
         -*)
             echo "错误: 未知选项 $1" >&2
             show_help
@@ -54,11 +59,11 @@ while [[ $# -gt 0 ]]; do
 done
 
 # 检查是否有文件模式
-if [ ${#FILE_PATTERNS[@]} -eq 0 ]; then
-    echo "错误: 至少需要一个文件模式" >&2
-    show_help
-    exit 1
-fi
+# if [ ${#FILE_PATTERNS[@]} -eq 0 ]; then
+#     echo "错误: 至少需要一个文件模式" >&2
+#     show_help
+#     exit 1
+# fi
 
 # 验证哈希方法
 case $HASH_METHOD in
@@ -131,7 +136,7 @@ get_file_list() {
     local exclude_patterns=("${EXCLUDE_PATTERNS[@]}")
     
     # 构建 find 命令
-    local find_cmd="find . -type f"
+    local find_cmd="find ${WORK_DIR} -type f"
     
     # 添加文件名条件
     if [ ${#patterns[@]} -gt 0 ]; then

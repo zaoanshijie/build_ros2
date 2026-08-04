@@ -1,12 +1,11 @@
-name: 编译linux_jazzy_x64
+name: 编译linux_jazzy_x86_64
+
 on:
-  workflow_run:
-    workflows: ["创建含源码的完整编译环境(x64)"]
-    types:
-      - completed
+  push:
+  workflow_dispatch:
 
 jobs:
-  build_ros2_ubuntu:
+  build:
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -14,85 +13,42 @@ jobs:
       matrix:
         ros2_version: [jazzy]
         docker_base: [ubuntu:24.04, ubuntu:22.04]
-        target: [amd64]
+        target: [x86_64]
 
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
-      - name: 将存储库签出到运行器
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           set-safe-directory: true
 
-      - name: 获取流程参数ID
-        id: fid
+      - name: 脚本准备
         run: |
-          # 上下文hash
-          CONTEXT_HASH=$(/bin/bash ./calculate_hash.sh Dockerfile *.yaml *.sh *.cmake)
-          echo "context_hash=$CONTEXT_HASH" >> $GITHUB_OUTPUT
+          cp ./script/*.sh  .
+          cp -r ./script/${{ matrix.target }}_linux/*  .
 
-      - name: 获取流程参数文件
-        uses: actions/cache/restore@v6
-        with:
-          path: flow_run_id_arg
-          key: ${{ steps.fid.outputs.context_hash }}-${{ matrix.docker_base }}-${{ matrix.target }}
-          fail-on-cache-miss: true
-
-      - name: 计算编译参数
+      - name: 计算上下文数据
         id: cid
         run: |
-          # 逐行读取并输出
-          while IFS='=' read -r key value; do
-            # 跳过空行和注释
-            [[ -z "$key" || "$key" =~ ^# ]] && continue
-
-            # 去除可能的空格
-            key=$(echo "$key" | xargs)
-            value=$(echo "$value" | xargs)
-
-            # 输出到GITHUB_OUTPUT
-            echo "${key}=${value}" >> $GITHUB_OUTPUT
-            declare "${key}=${value}"
-            echo "流程参数:${key}=${value}"
-          done < flow_run_id_arg
-
-
-          # 处理一下变量不存在的情况
-          if [ -z "$image_name" ]; then
-              echo "流程错误,不存在image_name数据"
-              exit 1
-          fi
-          if [ -z "$image_tag_key" ]; then
-              echo "流程错误,不存在image_tag_key数据"
-              exit 1
-          fi
-
           DOCKER_BASE="${{ matrix.docker_base }}"
           DOCKER_BASE="${DOCKER_BASE//:/_}"
           ROS2_COMMIT_ID=$(git ls-remote https://github.com/ros2/ros2.git ${{ matrix.ros2_version }}-release | head -n 1 | awk '{print $1}')
-          CONTEXT_HASH=${{ steps.fid.outputs.context_hash }}
-          TAG_KEY="${CONTEXT_HASH}-${ROS2_COMMIT_ID}"
+          TAG_KEY="${{ github.sha }}-${ROS2_COMMIT_ID}"
           TAG_NAME="ros2-$(date +'%Y-%m-%d_%H%M')"
           TAG_URL="https://api.github.com/repos/${{ github.repository }}/releases/tags/${TAG_KEY}"
-          ROS2_NAME="ros2-${DOCKER_BASE}-${{ matrix.ros2_version }}-${{ matrix.target }}"
+          IMAGE_NAME="ros2-docker-image-${DOCKER_BASE}-${{ matrix.ros2_version }}-${{ matrix.target }}"
           DEP_DATA="dep-${DOCKER_BASE}-${{ matrix.ros2_version }}-${{ matrix.target }}"
 
-
-          echo "context_hash=$CONTEXT_HASH" >> $GITHUB_OUTPUT
-          echo "ros2_name=${ROS2_NAME}" >> $GITHUB_OUTPUT
+          echo "image_name=${IMAGE_NAME}" >> $GITHUB_OUTPUT
           echo "tag_key=${TAG_KEY}" >> $GITHUB_OUTPUT
           echo "tag_name=${TAG_NAME}" >> $GITHUB_OUTPUT
           echo "tag_url=${TAG_URL}" >> $GITHUB_OUTPUT
           echo "dep_data=${DEP_DATA}" >> $GITHUB_OUTPUT
 
           echo "ROS2提交哈希: $ROS2_COMMIT_ID"
-          echo "编译名称: $ROS2_NAME"
+          echo "镜像名称: $IMAGE_NAME"
           echo "编译名称: $DEP_DATA"
           echo "TAG哈希:${TAG_KEY}"
           echo "TAG名称:${TAG_NAME}"
           echo "TAG URL:${TAG_URL}"
-          echo "镜像名称: $image_name"
-          echo "镜像TAG哈希:${image_tag_key}"
-          echo "镜像TAG名称:${image_tag_name}"
 
       - name: 判断是否需要构建
         id: check
@@ -108,49 +64,21 @@ jobs:
             echo "需要构建镜像"
           fi
 
-      - name: 下载docker镜像
-        if: steps.check.outputs.skip_build == 'false'
-        run: |
-          image_name="${{ steps.cid.outputs.image_name }}"
-          image_tag_url="https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ steps.cid.outputs.image_tag_key }}"
-          DOWNLOAD_URLS=$(curl -s ${image_tag_url} | jq -r '.assets[].browser_download_url')
-
-          if [ -z "$DOWNLOAD_URLS" ]; then
-            echo "❌ 未找到docker镜像"
-            exit 1
-          fi
-          # 逐行读取并下载
-          echo "$DOWNLOAD_URLS" | while read -r url; do
-            if [ -n "$url" ]; then
-              filename=$(basename "$url")
-              if [[ "${filename}" == "${image_name}"* ]]; then
-                echo "  ⬇️ 下载: $filename"
-                curl -OL "$url"
-              fi
-            fi
-          done
-          ls -alh
-          cat ${image_name}-part-* > ${image_name}.tar.zst
-
-          if [[ -f "${image_name}.tar.zst.sha256" ]]; then
-            sha256_content=$(cat "${image_name}.tar.zst.sha256")
-            echo "目标hash:${sha256_content}"
-            file_sha256=$(sha256sum ${image_name}.tar.zst)
-            echo "文件hash:${file_sha256}"
-            rm -rf *.sha256 # 删除缓存
-            if [ "${sha256_content}" == "${file_sha256}" ]; then
-              echo "SHA256 校验通过！"
-            else
-              echo "SHA256 校验失败！"
-              exit 1
-            fi
-          else
-            echo "跳过文件校验"
-          fi
-
       - name: 设置Buildx
         if: steps.check.outputs.skip_build == 'false'
         uses: docker/setup-buildx-action@v4
+
+      - name: 编译和导出镜像 ${{ matrix.target }}
+        if: steps.check.outputs.skip_build == 'false'
+        run: |
+          docker buildx create --name builder --use
+          docker buildx build \
+            --platform linux/${{ matrix.target }} \
+            -t ros2-build:${{ matrix.target }} \
+            --build-arg ROS2_VERSION=${{ matrix.ros2_version }} \
+            --build-arg BASE_IMAGE=${{ matrix.docker_base }} \
+            --output type=docker,dest=${{ steps.cid.outputs.image_name }}.tar.zst,compression=zstd,compression-level=9 \
+            .
 
       - name: 编译并打包构建产物
         if: steps.check.outputs.skip_build == 'false'
@@ -162,7 +90,17 @@ jobs:
 
           sha256sum ${{ steps.cid.outputs.ros2_name }}.tar.bz2 > ${{ steps.cid.outputs.ros2_name }}.tar.bz2.sha256
 
-      - name: 上传编译结果
+      # release 单文件最大2g
+      - name: 压缩Docker镜像
+        if: steps.check.outputs.skip_build == 'false'
+        run: |
+          image_name="${{ steps.cid.outputs.image_name }}"
+          split -b 1900M ${image_name}.tar.zst ${image_name}-part-
+          sha256sum ${image_name}.tar.zst > ${image_name}.tar.zst.sha256
+          cat "${image_name}.tar.zst.sha256"
+          rm -rf ${image_name}.tar.zst
+
+      - name: 上传Docker镜像
         if: steps.check.outputs.skip_build == 'false'
         uses: softprops/action-gh-release@v3
         with:
@@ -172,35 +110,7 @@ jobs:
           draft: false
           generate_release_notes: true
           files: |
+            ${{ steps.cid.outputs.image_name }}-part-*
             ${{ steps.cid.outputs.ros2_name }}.tar.bz2
             ${{ steps.cid.outputs.dep_data}}.txt
             *.sha256
-      # - name: 保存编译结果到缓存
-      #   if: steps.check.outputs.skip_build == 'false'
-      #   uses: actions/cache/save@v6
-      #   with:
-      #     path: ${{ steps.cid.outputs.ros2_name }}.tar.bz2
-      #     key: ${{ steps.cid.outputs.ros2_key }}
-
-      # - name: 上传所有构建产物
-      #   if: steps.check.outputs.skip_build == 'false'
-      #   uses: actions/upload-artifact@v4
-      #   with:
-      #     name: ${{ steps.cid.outputs.ros2_name }}
-      #     path: ${{ steps.cid.outputs.ros2_name }}.tar.bz2
-      #     retention-days: 7
-      #     if-no-files-found: error
-
-      # - name: 保存需要传递的参数
-      #   run: |
-      #     echo "ros2_linux_key=${{ steps.cid.outputs.ros2_key }}" >> flow_run_id_arg
-      #     echo "ros2_linux_name=${{ steps.cid.outputs.ros2_name }}" >> flow_run_id_arg
-      #     echo "ros2_commit_id=${{ steps.cid.outputs.ros2_commit_id }}" >> flow_run_id_arg
-
-      #     echo "提交hash: ${{ github.sha }} 流程ID: ${{ github.run_id }} 传递参数: $(cat flow_run_id_arg)"
-
-      # - name: 流程参数传递
-      #   uses: actions/cache/save@v6
-      #   with:
-      #     path: flow_run_id_arg
-      #     key: ${{ steps.cid.outputs.context_hash }}-${{ matrix.docker_base }}-${{ matrix.target }}
