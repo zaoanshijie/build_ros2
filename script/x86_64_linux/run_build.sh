@@ -67,7 +67,6 @@ docker load --input ${build_docker}
 # 获取导入的镜像名称
 IMAGE_NAME=$(docker images --format "{{.Repository}}:{{.Tag}}" | head -n 1)
 echo "成功导入镜像: $IMAGE_NAME"
-rm -rf ${build_docker}
 
 echo "启动容器:${IMAGE_NAME}"
 docker run -itd \

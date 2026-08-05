@@ -25,7 +25,7 @@ jobs:
       - name: 脚本准备
         run: |
           cp ./script/*.sh  .
-          cp -r ./script/${{ matrix.target }}_linux/*  .
+          cp -r ./script/aarch64_linux/*  .
 
       - name: 计算编译参数
         id: cid
