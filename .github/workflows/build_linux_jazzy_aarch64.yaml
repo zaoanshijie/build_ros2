@@ -1,20 +1,19 @@
-name: 编译linux_jazzy_aarch64
-# 因为aarch64 用qemu在docker中编译很慢
-# 并且aarch64的docker用来貌似没有实际用途
-# 所以这里直接使用宿主机编译
+name: 编译linux_jazzy_arm64
+
 on:
   push:
   workflow_dispatch:
 
 jobs:
-  build_ros2_ubuntu:
+  build:
+    runs-on: ubuntu-24.04-arm
     permissions:
       contents: write
     strategy:
       matrix:
         ros2_version: [jazzy]
-        os: [ubuntu-24.04, ubuntu-22.04]
-    runs-on: ${{ matrix.os }}-arm
+        docker_base: [ubuntu:24.04, ubuntu:22.04]
+        target: [arm64]
 
     steps:
       - name: 将存储库签出到运行器
@@ -25,28 +24,33 @@ jobs:
       - name: 脚本准备
         run: |
           cp ./script/*.sh  .
-          cp -r ./script/aarch64_linux/*  .
+          cp -r ./script/${{ matrix.target }}_linux/*  .
 
       - name: 计算编译参数
         id: cid
         run: |
 
-          RUN_OS="${{ matrix.os }}"
-          RUN_OS="${RUN_OS//-/_}"
+          DOCKER_BASE="${{ matrix.docker_base }}"
+          DOCKER_BASE="${DOCKER_BASE//:/_}"
           ROS2_COMMIT_ID=$(git ls-remote https://github.com/ros2/ros2.git ${{ matrix.ros2_version }}-release | head -n 1 | awk '{print $1}')
           TAG_KEY="${{ github.sha }}-${ROS2_COMMIT_ID}"
           TAG_NAME="ros2-$(date +'%Y-%m-%d_%H%M')"
           TAG_URL="https://api.github.com/repos/${{ github.repository }}/releases/tags/${TAG_KEY}"
-          ROS2_NAME="ros2-${RUN_OS}-${{ matrix.ros2_version }}-aarch64"
-
+          ROS2_NAME="ros2-${DOCKER_BASE}-${{ matrix.ros2_version }}-${{ matrix.target }}"
+          IMAGE_NAME="ros2-docker-image-${DOCKER_BASE}-${{ matrix.ros2_version }}-${{ matrix.target }}"
+          DEP_DATA="dep-${DOCKER_BASE}-${{ matrix.ros2_version }}-${{ matrix.target }}"
 
           echo "ros2_name=${ROS2_NAME}" >> $GITHUB_OUTPUT
+          echo "image_name=${IMAGE_NAME}" >> $GITHUB_OUTPUT
           echo "tag_key=${TAG_KEY}" >> $GITHUB_OUTPUT
           echo "tag_name=${TAG_NAME}" >> $GITHUB_OUTPUT
           echo "tag_url=${TAG_URL}" >> $GITHUB_OUTPUT
+          echo "dep_data=${DEP_DATA}" >> $GITHUB_OUTPUT
 
           echo "ROS2提交哈希: $ROS2_COMMIT_ID"
+          echo "镜像名称: $IMAGE_NAME"
           echo "编译名称: $ROS2_NAME"
+          echo "依赖文件名称: $DEP_DATA"
           echo "TAG哈希:${TAG_KEY}"
           echo "TAG名称:${TAG_NAME}"
           echo "TAG URL:${TAG_URL}"
@@ -65,15 +69,41 @@ jobs:
             echo "需要构建镜像"
           fi
 
+      - name: 设置Buildx
+        if: steps.check.outputs.skip_build == 'false'
+        uses: docker/setup-buildx-action@v4
+
+      - name: 编译和导出镜像 ${{ matrix.target }}
+        if: steps.check.outputs.skip_build == 'false'
+        run: |
+          docker buildx create --name builder --use
+          docker buildx build \
+            --platform linux/${{ matrix.target }} \
+            -t ros2-build:${{ matrix.target }} \
+            --build-arg ROS2_VERSION=${{ matrix.ros2_version }} \
+            --build-arg BASE_IMAGE=${{ matrix.docker_base }} \
+            --output type=docker,dest=${{ steps.cid.outputs.image_name }}.tar.zst,compression=zstd,compression-level=9 \
+            .
+
       - name: 编译并打包构建产物
         if: steps.check.outputs.skip_build == 'false'
         run: |
-          # 先创建环境
-          sudo -E /bin/bash $GITHUB_WORKSPACE/build.sh -r "${{ matrix.ros2_version }}"
-          sudo mv $GITHUB_WORKSPACE/ros2/install $GITHUB_WORKSPACE
+          /bin/bash $GITHUB_WORKSPACE/run_build.sh -r "${{ matrix.ros2_version }}" -i "${{ steps.cid.outputs.image_name }}.tar.zst" -t ${{ matrix.target }}
 
-          tar -cavf ${{ steps.cid.outputs.ros2_name }}.tar.bz2 install
+          mv dep_data.txt  ${{ steps.cid.outputs.dep_data}}.txt
+          mv ros2.tar.bz2 ${{ steps.cid.outputs.ros2_name }}.tar.bz2
+
           sha256sum ${{ steps.cid.outputs.ros2_name }}.tar.bz2 > ${{ steps.cid.outputs.ros2_name }}.tar.bz2.sha256
+
+      # release 单文件最大2g
+      - name: 压缩Docker镜像
+        if: steps.check.outputs.skip_build == 'false'
+        run: |
+          image_name="${{ steps.cid.outputs.image_name }}"
+          split -b 1900M ${image_name}.tar.zst ${image_name}-part-
+          sha256sum ${image_name}.tar.zst > ${image_name}.tar.zst.sha256
+          cat "${image_name}.tar.zst.sha256"
+          rm -rf ${image_name}.tar.zst
 
       - name: 上传编译结果
         if: steps.check.outputs.skip_build == 'false'
@@ -85,5 +115,7 @@ jobs:
           draft: false
           generate_release_notes: true
           files: |
+            ${{ steps.cid.outputs.image_name }}-part-*
             ${{ steps.cid.outputs.ros2_name }}.tar.bz2
+            ${{ steps.cid.outputs.dep_data}}.txt
             *.sha256

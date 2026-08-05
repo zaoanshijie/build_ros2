@@ -1,4 +1,4 @@
-name: 编译linux_jazzy_x86_64
+name: 编译linux_jazzy_amd64
 
 on:
   push:
@@ -13,10 +13,11 @@ jobs:
       matrix:
         ros2_version: [jazzy]
         docker_base: [ubuntu:24.04, ubuntu:22.04]
-        target: [x86_64]
+        target: [amd64]
 
     steps:
-      - uses: actions/checkout@v4
+      - name: 将存储库签出到运行器
+        uses: actions/checkout@v4
         with:
           set-safe-directory: true
 
@@ -25,18 +26,21 @@ jobs:
           cp ./script/*.sh  .
           cp -r ./script/${{ matrix.target }}_linux/*  .
 
-      - name: 计算上下文数据
+      - name: 计算编译参数
         id: cid
         run: |
+
           DOCKER_BASE="${{ matrix.docker_base }}"
           DOCKER_BASE="${DOCKER_BASE//:/_}"
           ROS2_COMMIT_ID=$(git ls-remote https://github.com/ros2/ros2.git ${{ matrix.ros2_version }}-release | head -n 1 | awk '{print $1}')
           TAG_KEY="${{ github.sha }}-${ROS2_COMMIT_ID}"
           TAG_NAME="ros2-$(date +'%Y-%m-%d_%H%M')"
           TAG_URL="https://api.github.com/repos/${{ github.repository }}/releases/tags/${TAG_KEY}"
+          ROS2_NAME="ros2-${DOCKER_BASE}-${{ matrix.ros2_version }}-${{ matrix.target }}"
           IMAGE_NAME="ros2-docker-image-${DOCKER_BASE}-${{ matrix.ros2_version }}-${{ matrix.target }}"
           DEP_DATA="dep-${DOCKER_BASE}-${{ matrix.ros2_version }}-${{ matrix.target }}"
 
+          echo "ros2_name=${ROS2_NAME}" >> $GITHUB_OUTPUT
           echo "image_name=${IMAGE_NAME}" >> $GITHUB_OUTPUT
           echo "tag_key=${TAG_KEY}" >> $GITHUB_OUTPUT
           echo "tag_name=${TAG_NAME}" >> $GITHUB_OUTPUT
@@ -45,7 +49,8 @@ jobs:
 
           echo "ROS2提交哈希: $ROS2_COMMIT_ID"
           echo "镜像名称: $IMAGE_NAME"
-          echo "编译名称: $DEP_DATA"
+          echo "编译名称: $ROS2_NAME"
+          echo "依赖文件名称: $DEP_DATA"
           echo "TAG哈希:${TAG_KEY}"
           echo "TAG名称:${TAG_NAME}"
           echo "TAG URL:${TAG_URL}"
@@ -100,7 +105,7 @@ jobs:
           cat "${image_name}.tar.zst.sha256"
           rm -rf ${image_name}.tar.zst
 
-      - name: 上传Docker镜像
+      - name: 上传编译结果
         if: steps.check.outputs.skip_build == 'false'
         uses: softprops/action-gh-release@v3
         with:

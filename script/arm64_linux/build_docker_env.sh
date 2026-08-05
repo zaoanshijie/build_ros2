@@ -35,9 +35,9 @@ fi
 
 cpuinfo=$(lscpu |grep aarch64 || true)
 if [[ -z ${cpuinfo} ]]; then
-  echo "当前架构x86_64"
+  echo "当前架构amd64"
 else
-  echo "当前架构aarch64"
+  echo "当前架构arm64"
 fi
 
 apt update -y
@@ -139,9 +139,9 @@ colcon mixin add default https://github.com/colcon/colcon-mixin-repository/raw/m
 colcon mixin update default
 
 echo "${dep_data}" > dep_data.txt
-# dest_arch="x86_64"
+# dest_arch="amd64"
 # if [[ -n ${cpuinfo} ]]; then
-#   dest_arch="aarch64"
+#   dest_arch="arm64"
 # fi
 # echo "编译平台:${dest_arch}"
 # # 替换平台

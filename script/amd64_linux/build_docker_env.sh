@@ -9,16 +9,8 @@ work_dir=${script_dir}
 # ros2版本
 ros2_version=
 # 源码目录
-ros2_dir="${work_dir}/ros2"
+ros2_dir="/ros2_work_dir"
 
-function print_info() {
-  echo "输出编译机器信息"
-  lscpu
-  cat /proc/cpuinfo
-  whoami
-  echo "输出目录信息"
-  ls -alh
-}
 
 function print_help() {
   echo "-r ros2的版本 默认jazzy"
@@ -41,7 +33,12 @@ if [[ -z ${ros2_version} ]]; then
   echo "设置默认的ros2版本: ${ros2_version}"
 fi
 
-print_info
+cpuinfo=$(lscpu |grep aarch64 || true)
+if [[ -z ${cpuinfo} ]]; then
+  echo "当前架构amd64"
+else
+  echo "当前架构arm64"
+fi
 
 apt update -y
 apt dist-upgrade -y
@@ -100,17 +97,25 @@ apt install -y \
   ros-dev-tools \
   libssl-dev
 
+echo "安装clang:${cpuinfo}"
 llvm_path="/opt"
 llvm_version="22.1.8"
 if [[ ! -d ${llvm_path} ]]; then
   mkdir ${llvm_path}
 fi
-
-curl -OL https://github.com/llvm/llvm-project/releases/download/llvmorg-${llvm_version}/LLVM-${llvm_version}-Linux-ARM64.tar.xz
-mv LLVM-${llvm_version}-Linux-ARM64.tar.xz ${llvm_path}
-cd ${llvm_path}
-tar -xf LLVM-${llvm_version}-Linux-ARM64.tar.xz
-ln -s ${llvm_path}/LLVM-${llvm_version}-Linux-ARM64 ${llvm_path}/llvm
+if [[ -z ${cpuinfo} ]]; then
+  curl -OL https://github.com/llvm/llvm-project/releases/download/llvmorg-${llvm_version}/LLVM-${llvm_version}-Linux-X64.tar.xz
+  mv LLVM-${llvm_version}-Linux-X64.tar.xz ${llvm_path}
+  cd ${llvm_path}
+  tar -xf LLVM-${llvm_version}-Linux-X64.tar.xz
+  ln -s ${llvm_path}/LLVM-${llvm_version}-Linux-X64 ${llvm_path}/llvm
+else
+  curl -OL https://github.com/llvm/llvm-project/releases/download/llvmorg-${llvm_version}/LLVM-${llvm_version}-Linux-ARM64.tar.xz
+  mv LLVM-${llvm_version}-Linux-ARM64.tar.xz ${llvm_path}
+  cd ${llvm_path}
+  tar -xf LLVM-${llvm_version}-Linux-ARM64.tar.xz
+  ln -s ${llvm_path}/LLVM-${llvm_version}-Linux-ARM64 ${llvm_path}/llvm
+fi
 
 rm -rf ${llvm_path}/*.tar.xz
 
@@ -133,17 +138,15 @@ rosdep install --from-paths src --ignore-src -y --skip-keys "fastcdr rti-connext
 colcon mixin add default https://github.com/colcon/colcon-mixin-repository/raw/master/index.yaml
 colcon mixin update default
 
+echo "${dep_data}" > dep_data.txt
+# dest_arch="amd64"
+# if [[ -n ${cpuinfo} ]]; then
+#   dest_arch="arm64"
+# fi
+# echo "编译平台:${dest_arch}"
+# # 替换平台
+# sed -i "s/^.*CMAKE_SYSTEM_PROCESSOR.*$/set(CMAKE_SYSTEM_PROCESSOR ${dest_arch})/" ${work_dir}/toolchain.cmake
 
-# 编译
-# CMAKE_SUPPRESS_DEVELOPER_WARNINGS=ON # 抑制开发者警告
-# CMAKE_WARN_DEPRECATED=OFF # 是否对已弃用的功能发出警告
-# --mixin release 等价 --cmake-args -DCMAKE_BUILD_TYPE=Release
-export MAKEFLAGS="-j4"
-colcon build \
-    --parallel-workers 2 \
-    --merge-install \
-    --mixin release \
-    --cmake-force-configure \
-    --cmake-args -DCMAKE_TOOLCHAIN_FILE=${script_dir}/toolchain.cmake
 
-ls -alh
+apt-get clean
+rm -rf /var/lib/apt/lists/*
