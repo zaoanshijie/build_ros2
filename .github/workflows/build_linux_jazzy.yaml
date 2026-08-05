@@ -6,14 +6,32 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-24.04
     permissions:
       contents: write
     strategy:
       matrix:
         ros2_version: [jazzy]
         docker_base: [ubuntu:24.04, ubuntu:22.04]
-        target: [amd64]
+        os: [ubuntu-24.04, ubuntu-24.04-arm]
+        target: [amd64, arm64]
+        exclude:
+          - ros2_version: jazzy
+            docker_base: ubuntu:24.04
+            os: ubuntu-24.04
+            target: arm64
+          - ros2_version: jazzy
+            docker_base: ubuntu:22.04
+            os: ubuntu-24.04
+            target: arm64
+          - ros2_version: jazzy
+            docker_base: ubuntu:24.04
+            os: ubuntu-24.04-arm
+            target: amd64
+          - ros2_version: jazzy
+            docker_base: ubuntu:22.04
+            os: ubuntu-24.04-arm
+            target: amd64
+    runs-on: ${{ matrix.os }}
 
     steps:
       - name: 将存储库签出到运行器
@@ -24,7 +42,7 @@ jobs:
       - name: 脚本准备
         run: |
           cp ./script/*.sh  .
-          cp -r ./script/${{ matrix.target }}_linux/*  .
+          cp -r ./script/linux/*  .
 
       - name: 计算编译参数
         id: cid

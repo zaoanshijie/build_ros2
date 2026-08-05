@@ -67,6 +67,6 @@ colcon build \
     --merge-install \
     --mixin release \
     --cmake-force-configure \
-    --cmake-args -DCMAKE_TOOLCHAIN_FILE=${docker_ros2_dir}/toolchain.cmake
+    --cmake-args -DCMAKE_TOOLCHAIN_FILE=${script_dir}/toolchain.cmake
 
 ls -alh
