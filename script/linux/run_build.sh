@@ -13,6 +13,8 @@ build_docker=
 build_target=
 # 源码目录
 docker_ros2_dir="/ros2_work_dir"
+# 只构建依赖
+dep_only="false"
 
 function print_info() {
   echo "输出编译机器信息"
@@ -26,9 +28,10 @@ function print_help() {
   echo "-r ros2的版本 默认jazzy"
   echo "-i docker镜像(编译环境)"
   echo "-t 目标架构(amd64 arn64)"
+  echo "-d 提取依赖包"
 }
 
-while getopts 'r:i:t:h' OPT; do
+while getopts 'r:i:t:d:h' OPT; do
   case $OPT in
   r)
     ros2_version="${OPTARG}"
@@ -38,6 +41,9 @@ while getopts 'r:i:t:h' OPT; do
     ;;
   t)
     build_target="${OPTARG}"
+    ;;
+  d)
+    dep_only="${OPTARG}"
     ;;
   h)
     print_help
@@ -69,9 +75,15 @@ IMAGE_NAME=$(docker images --format "{{.Repository}}:{{.Tag}}" | head -n 1)
 echo "成功导入镜像: $IMAGE_NAME"
 
 echo "启动容器:${IMAGE_NAME}"
+if [[ ${dep_only} == "true" ]]; then
+  docker_name="dep-ros2-build-${build_target}"
+else
+  docker_name="ros2-build-${build_target}"
+fi
+echo "docker name :${docker_name}"
 docker run -itd \
   --platform linux/${build_target} \
-  --name ros2-build-${build_target} \
+  --name ${docker_name} \
   -v ${script_dir}:/workspace \
   ${IMAGE_NAME} \
   /bin/bash
@@ -79,13 +91,22 @@ docker run -itd \
 # 等待容器启动
 sleep 5
 
-echo "执行编译"
-docker exec ros2-build-${build_target} /bin/bash -c "echo '容器运行成功,开始执行${build_target}编译'"
-docker exec ros2-build-${build_target} /bin/bash -c "cp -r /workspace/* ${docker_ros2_dir}"
-docker exec ros2-build-${build_target} /bin/bash -c "cd ${docker_ros2_dir} && /bin/bash build.sh -r ${ros2_version} -t ${build_target}"
-docker exec ros2-build-${build_target} /bin/bash -c "cd ${docker_ros2_dir} && tar -cavf ros2.tar.bz2 install && mv ros2.tar.bz2 /workspace"
-docker exec ros2-build-${build_target} /bin/bash -c "cd ${docker_ros2_dir} && cp dep_data.txt /workspace"
-docker exec ros2-build-${build_target} /bin/bash -c "echo '${build_target}编译执行完毕'"
+if [[ ${dep_only} == "true" ]]; then
+  docker exec ${docker_name} /bin/bash -c "echo '容器运行成功,开始提取依赖包'"
+  docker exec ${docker_name} /bin/bash -c "cd ${docker_ros2_dir} && cp dep_data.txt /workspace"
+  docker exec ${docker_name} /bin/bash -c "cd ${docker_ros2_dir} && cp deps_packages.tar.bz2 /workspace"
+
+else
+  echo "执行编译"
+  docker exec ${docker_name} /bin/bash -c "echo '容器运行成功,开始执行${build_target}编译'"
+  docker exec ${docker_name} /bin/bash -c "cp -r /workspace/* ${docker_ros2_dir}"
+  docker exec ${docker_name} /bin/bash -c "cd ${docker_ros2_dir} && /bin/bash build.sh -r ${ros2_version} -t ${build_target}"
+  docker exec ${docker_name} /bin/bash -c "cd ${docker_ros2_dir} && tar -cavf ros2.tar.bz2 install && mv ros2.tar.bz2 /workspace"
+  docker exec ${docker_name} /bin/bash -c "cd ${docker_ros2_dir} && cp dep_data.txt /workspace"
+  docker exec ${docker_name} /bin/bash -c "cd ${docker_ros2_dir} && cp deps_packages.tar.bz2 /workspace"
+  docker exec ${docker_name} /bin/bash -c "echo '${build_target}编译执行完毕'"
+fi
 # 清理容器
-docker stop ros2-build-${build_target}
-docker rm ros2-build-${build_target}
+docker stop ${docker_name}
+docker rm ${docker_name}
+docker rmi ${IMAGE_NAME}

@@ -57,6 +57,7 @@ jobs:
           ROS2_NAME="ros2-${DOCKER_BASE}-${{ matrix.ros2_version }}-${{ matrix.target }}"
           IMAGE_NAME="ros2-docker-image-${DOCKER_BASE}-${{ matrix.ros2_version }}-${{ matrix.target }}"
           DEP_DATA="dep-${DOCKER_BASE}-${{ matrix.ros2_version }}-${{ matrix.target }}"
+          PACKAGES_DATA="packages-${DOCKER_BASE}-${{ matrix.ros2_version }}-${{ matrix.target }}"
 
           echo "ros2_name=${ROS2_NAME}" >> $GITHUB_OUTPUT
           echo "image_name=${IMAGE_NAME}" >> $GITHUB_OUTPUT
@@ -64,11 +65,13 @@ jobs:
           echo "tag_name=${TAG_NAME}" >> $GITHUB_OUTPUT
           echo "tag_url=${TAG_URL}" >> $GITHUB_OUTPUT
           echo "dep_data=${DEP_DATA}" >> $GITHUB_OUTPUT
+          echo "packages_data=${PACKAGES_DATA}" >> $GITHUB_OUTPUT
 
           echo "ROS2提交哈希: $ROS2_COMMIT_ID"
           echo "镜像名称: $IMAGE_NAME"
           echo "编译名称: $ROS2_NAME"
-          echo "依赖文件名称: $DEP_DATA"
+          echo "依赖列表文件名称: $DEP_DATA"
+          echo "依赖包名称: $PACKAGES_DATA"
           echo "TAG哈希:${TAG_KEY}"
           echo "TAG名称:${TAG_NAME}"
           echo "TAG URL:${TAG_URL}"
@@ -103,15 +106,29 @@ jobs:
             --output type=docker,dest=${{ steps.cid.outputs.image_name }}.tar.zst,compression=zstd,compression-level=9 \
             .
 
+          docker buildx create --name dep --use
+          docker buildx build \
+            --platform linux/${{ matrix.target }} \
+            -t dep-ros2-build:${{ matrix.target }} \
+            --build-arg ROS2_VERSION=${{ matrix.ros2_version }} \
+            --build-arg BASE_IMAGE=${{ matrix.docker_base }} \
+            --build-arg DEP_ONLY=true \
+            --output type=docker,dest=dep_${{ steps.cid.outputs.image_name }}.tar.zst,compression=zstd,compression-level=9 \
+            .
+
       - name: 编译并打包构建产物
         if: steps.check.outputs.skip_build == 'false'
         run: |
+          /bin/bash $GITHUB_WORKSPACE/run_build.sh -r "${{ matrix.ros2_version }}" -i "dep_${{ steps.cid.outputs.image_name }}.tar.zst" -t ${{ matrix.target }} -d true
           /bin/bash $GITHUB_WORKSPACE/run_build.sh -r "${{ matrix.ros2_version }}" -i "${{ steps.cid.outputs.image_name }}.tar.zst" -t ${{ matrix.target }}
 
+          rm -rf dep_${{ steps.cid.outputs.image_name }}.tar.zst
           mv dep_data.txt  ${{ steps.cid.outputs.dep_data}}.txt
           mv ros2.tar.bz2 ${{ steps.cid.outputs.ros2_name }}.tar.bz2
+          mv deps_packages.tar.bz2 ${{ steps.cid.outputs.packages_data }}.tar.bz2
 
           sha256sum ${{ steps.cid.outputs.ros2_name }}.tar.bz2 > ${{ steps.cid.outputs.ros2_name }}.tar.bz2.sha256
+          sha256sum ${{ steps.cid.outputs.packages_data }}.tar.bz2 > ${{ steps.cid.outputs.packages_data }}.tar.bz2.sha256
 
       # release 单文件最大2g
       - name: 压缩Docker镜像
@@ -131,9 +148,10 @@ jobs:
           name: ${{ steps.cid.outputs.tag_name }}
           prerelease: false
           draft: false
-          generate_release_notes: true
+          generate_release_notes: false
           files: |
             ${{ steps.cid.outputs.image_name }}-part-*
             ${{ steps.cid.outputs.ros2_name }}.tar.bz2
+            ${{ steps.cid.outputs.packages_data }}.tar.bz2
             ${{ steps.cid.outputs.dep_data}}.txt
             *.sha256

@@ -10,16 +10,22 @@ work_dir=${script_dir}
 ros2_version=
 # 源码目录
 ros2_dir="/ros2_work_dir"
+# 只构建依赖
+dep_only="false"
 
 
 function print_help() {
   echo "-r ros2的版本 默认jazzy"
+  echo "-d 只生成依赖包"
 }
 
-while getopts 'r:h' OPT; do
+while getopts 'r:d:h' OPT; do
   case $OPT in
   r)
     ros2_version="${OPTARG}"
+    ;;
+  d)
+    dep_only="${OPTARG}"
     ;;
   h)
     print_help
@@ -39,6 +45,7 @@ if [[ -z ${cpuinfo} ]]; then
 else
   echo "当前架构arm64"
 fi
+echo "当前ros2版本:${ros2_version}"
 
 apt update -y
 apt dist-upgrade -y
@@ -125,20 +132,49 @@ rm -rf ${ros2_dir}
 mkdir -p ${ros2_dir}/src
 cd ${ros2_dir}
 
-vcs import --input https://raw.githubusercontent.com/ros2/ros2/${ros2_version}-release/ros2.repos src
-
-# 使用 rosdep 安装依赖
-rosdep init
-rosdep update
-# 获取有哪些依赖
-dep_data=$(rosdep install --from-paths src --ignore-src -y --skip-keys "fastcdr rti-connext-dds-6.0.1 urdfdom_headers" -s)
-rosdep install --from-paths src --ignore-src -y --skip-keys "fastcdr rti-connext-dds-6.0.1 urdfdom_headers"
+src_addr="https://raw.githubusercontent.com/ros2/ros2/${ros2_version}-release/ros2.repos"
+echo "源码地址:${src_addr}"
+vcs import --input ${src_addr} src
 
 # Install colcon mixins
 colcon mixin add default https://github.com/colcon/colcon-mixin-repository/raw/master/index.yaml
 colcon mixin update default
 
-echo "${dep_data}" > dep_data.txt
+# 使用 rosdep 安装依赖
+rosdep init
+rosdep update
+
+if [[ ${dep_only} == "true" ]]; then
+  echo "下载并打包依赖"
+  dep_data=$(rosdep install --from-paths src --ignore-src -y --skip-keys "fastcdr rti-connext-dds-6.0.1 urdfdom_headers" -s)
+  echo "${dep_data}" > dep_data.txt
+
+  # 将依赖打包
+  # 创建存放deb包的目录
+  download_dir="${ros2_dir}/packages"
+  rm -rf "${download_dir}"
+  mkdir -p "${download_dir}"
+
+  # 提取包名列表
+  packages=$(grep -E "^\s*apt-get install -y" dep_data.txt | awk '{print $NF}' | tr '\n' ' ')
+
+  # 设置apt下载目录
+  echo "开始下载所有依赖包（包含依赖）..."
+  apt-get install --download-only -y -o Dir::Cache::Archives="${download_dir}" ${packages}
+
+  # 打包所有deb文件
+  echo "打包所有deb文件..."
+  tar -czvf deps_packages.tar.bz2 -C "${download_dir}" .
+
+  echo "下载的包数量: $(ls -1 "${download_dir}"/*.deb 2>/dev/null | wc -l)"
+
+  exit 0
+fi
+
+echo "安装依赖"
+rosdep install --from-paths src --ignore-src -y --skip-keys "fastcdr rti-connext-dds-6.0.1 urdfdom_headers"
+
+
 # dest_arch="amd64"
 # if [[ -n ${cpuinfo} ]]; then
 #   dest_arch="arm64"
