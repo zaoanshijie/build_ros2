@@ -23,6 +23,8 @@ function print_info() {
   whoami
   echo "输出目录信息"
   ls -alh
+  echo "输出python版本"
+  python --version
 }
 function print_help() {
   echo "-r ros2的版本 默认jazzy"
@@ -101,6 +103,7 @@ else
   docker exec ${docker_name} /bin/bash -c "echo '容器运行成功,开始执行${build_target}编译'"
   docker exec ${docker_name} /bin/bash -c "cp -r /workspace/* ${docker_ros2_dir}"
   docker exec ${docker_name} /bin/bash -c "cd ${docker_ros2_dir} && /bin/bash build.sh -r ${ros2_version} -t ${build_target}"
+  docker exec ${docker_name} /bin/bash -c "cd ${docker_ros2_dir} && /bin/bash build_${ros2_version}_dep_lib.sh"
   docker exec ${docker_name} /bin/bash -c "cd ${docker_ros2_dir} && tar -cavf ros2.tar.bz2 install && mv ros2.tar.bz2 /workspace"
   docker exec ${docker_name} /bin/bash -c "cd ${docker_ros2_dir} && cp dep_data.txt /workspace"
   docker exec ${docker_name} /bin/bash -c "cd ${docker_ros2_dir} && cp deps_packages.tar.bz2 /workspace"
