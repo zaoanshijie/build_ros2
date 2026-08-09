@@ -39,8 +39,16 @@ if [[ -z ${ros2_version} ]]; then
   echo "设置默认的ros2版本: ${ros2_version}"
 fi
 
-cpuinfo=$(lscpu |grep aarch64 || true)
-if [[ -z ${cpuinfo} ]]; then
+if lsb_release -si 2>/dev/null | grep -qi ubuntu; then
+    OS="Ubuntu"
+else
+    OS="Debian"
+fi
+
+echo "检测到系统: $OS"
+
+cpuinfo="$(lscpu |grep aarch64 || true)"
+if [[ -z "${cpuinfo}" ]]; then
   echo "当前架构amd64"
 else
   echo "当前架构arm64"
@@ -62,19 +70,38 @@ dpkg-reconfigure -f noninteractive tzdata
 
 echo "设定locale"
 
-locale  # check for UTF-8
-
 apt install locales -y
 
-locale-gen en_US en_US.UTF-8
-update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
-export LANG=en_US.UTF-8
+echo "=== 检查当前locale设置 ==="
+locale
 
-locale  # verify settings
+if [ "$OS" = "Ubuntu" ]; then
+    echo "=== Ubuntu系统配置 ==="
+    # Ubuntu通常默认已启用en_US.UTF-8，直接生成即可
+    locale-gen en_US en_US.UTF-8
+    update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
+
+else
+    echo "=== Debian系统配置 ==="
+    echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
+    locale-gen
+    update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
+fi
+
+# 设置当前shell环境变量（立即生效，不持久化）
+export LANG=en_US.UTF-8
+export LC_ALL=en_US.UTF-8
+export LANGUAGE=en_US.UTF-8
+
+echo "=== 当前locale设置 ==="
+locale
+
 
 echo "启用所需的仓库"
 apt install software-properties-common -y
-add-apt-repository universe -y
+if [ "$OS" = "Ubuntu" ]; then
+  add-apt-repository universe -y
+fi
 
 # 重来一次
 apt update -y

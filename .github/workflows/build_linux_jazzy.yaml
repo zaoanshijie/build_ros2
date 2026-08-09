@@ -11,7 +11,7 @@ jobs:
     strategy:
       matrix:
         ros2_version: [jazzy]
-        docker_base: [ubuntu:24.04, ubuntu:22.04]
+        docker_base: [ubuntu:24.04, ubuntu:22.04, debian:bookworm]
         os: [ubuntu-24.04, ubuntu-24.04-arm]
         target: [amd64, arm64]
         exclude:
@@ -31,6 +31,19 @@ jobs:
             docker_base: ubuntu:22.04
             os: ubuntu-24.04-arm
             target: amd64
+          - ros2_version: jazzy
+            docker_base: debian:bookworm
+            os: ubuntu-24.04
+            target: amd64
+          - ros2_version: jazzy
+            docker_base: debian:bookworm
+            os: ubuntu-24.04
+            target: arm64
+          - ros2_version: jazzy
+            docker_base: debian:bookworm
+            os: ubuntu-24.04-arm
+            target: amd64
+
     runs-on: ${{ matrix.os }}
 
     steps:
