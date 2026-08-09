@@ -37,6 +37,8 @@ if [[ -z ${ros2_version} ]]; then
   echo "设置默认的ros2版本: ${ros2_version}"
 fi
 
+echo "=== 当前locale设置 ==="
+locale
 
 # https://docs.ros.org/en/jazzy/Installation/Alternatives/Ubuntu-Development-Setup.html
 cd ${docker_ros2_dir}
