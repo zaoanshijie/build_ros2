@@ -38,6 +38,9 @@ if [[ -z ${ros2_version} ]]; then
 fi
 
 echo "=== 当前locale设置 ==="
+export LANG=en_US.UTF-8
+export LC_ALL=en_US.UTF-8
+export LANGUAGE=en_US.UTF-8
 locale
 
 # https://docs.ros.org/en/jazzy/Installation/Alternatives/Ubuntu-Development-Setup.html

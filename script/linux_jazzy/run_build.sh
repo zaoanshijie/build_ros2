@@ -105,8 +105,6 @@ else
   docker exec ${docker_name} /bin/bash -c "cd ${docker_ros2_dir} && /bin/bash build.sh -r ${ros2_version} -t ${build_target}"
   docker exec ${docker_name} /bin/bash -c "cd ${docker_ros2_dir} && /bin/bash build_${ros2_version}_dep_lib.sh"
   docker exec ${docker_name} /bin/bash -c "cd ${docker_ros2_dir} && tar -cavf ros2.tar.bz2 install && mv ros2.tar.bz2 /workspace"
-  docker exec ${docker_name} /bin/bash -c "cd ${docker_ros2_dir} && cp dep_data.txt /workspace"
-  docker exec ${docker_name} /bin/bash -c "cd ${docker_ros2_dir} && cp deps_packages.tar.bz2 /workspace"
   docker exec ${docker_name} /bin/bash -c "echo '${build_target}编译执行完毕'"
 fi
 # 清理容器

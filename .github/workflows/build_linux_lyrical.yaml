@@ -1,4 +1,4 @@
-name: 编译linux_jazzy_amd64
+name: 编译linux_lyrical_amd64
 
 on:
   push:
@@ -10,38 +10,38 @@ jobs:
       contents: write
     strategy:
       matrix:
-        ros2_version: [jazzy]
-        docker_base: [ubuntu:24.04, ubuntu:22.04, debian:bookworm]
-        os: [ubuntu-24.04, ubuntu-24.04-arm]
+        ros2_version: [lyrical]
+        docker_base: [ubuntu:24.04, ubuntu:26.04, debian:trixie]
+        os: [ubuntu-26.04, ubuntu-26.04-arm]
         target: [amd64, arm64]
         exclude:
-          - ros2_version: jazzy
+          - ros2_version: lyrical
             docker_base: ubuntu:24.04
-            os: ubuntu-24.04
+            os: ubuntu-26.04
             target: arm64
-          - ros2_version: jazzy
-            docker_base: ubuntu:22.04
-            os: ubuntu-24.04
+          - ros2_version: lyrical
+            docker_base: ubuntu:26.04
+            os: ubuntu-26.04
             target: arm64
-          - ros2_version: jazzy
+          - ros2_version: lyrical
             docker_base: ubuntu:24.04
-            os: ubuntu-24.04-arm
+            os: ubuntu-26.04-arm
             target: amd64
-          - ros2_version: jazzy
-            docker_base: ubuntu:22.04
-            os: ubuntu-24.04-arm
+          - ros2_version: lyrical
+            docker_base: ubuntu:26.04
+            os: ubuntu-26.04-arm
             target: amd64
-          - ros2_version: jazzy
-            docker_base: debian:bookworm
-            os: ubuntu-24.04
+          - ros2_version: lyrical
+            docker_base: debian:trixie
+            os: ubuntu-26.04
             target: amd64
-          - ros2_version: jazzy
-            docker_base: debian:bookworm
-            os: ubuntu-24.04
+          - ros2_version: lyrical
+            docker_base: debian:trixie
+            os: ubuntu-26.04
             target: arm64
-          - ros2_version: jazzy
-            docker_base: debian:bookworm
-            os: ubuntu-24.04-arm
+          - ros2_version: lyrical
+            docker_base: debian:trixie
+            os: ubuntu-26.04-arm
             target: amd64
 
     runs-on: ${{ matrix.os }}
