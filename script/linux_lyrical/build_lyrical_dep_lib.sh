@@ -17,7 +17,7 @@ apt update
 # apt install liblttng-ust-python-agent1t64 liblttng-ust1t64 lttng-tools libgl1 libopengl0
 echo "编译assimp"
 cd ${work_dir}
-assimp_version="v5.3.1"
+assimp_version="v6.0.4"
 assimp_build="${script_dir}/assimp_build"
 assimp_src="${script_dir}/assimp"
 git clone https://github.com/assimp/assimp.git --branch ${assimp_version}
@@ -57,3 +57,8 @@ cmake -S "${console_bridge_src}" -B "${console_bridge_build}" \
 
 cmake --build "${console_bridge_build}" --config Release -j8
 cmake --install "${console_bridge_build}"
+
+
+# apt install -y liblttng-ust-python-agent1t64 liblttng-ust1t64 lttng-tools libgl1 libopengl0 \
+#     libconsole-bridge1.0 libgsm1 libyaml-cpp0.8 \
+#     libopencv-core410 libopencv-video410 libopencv-imgproc410 libopencv-imgcodecs410 libopencv-highgui410 libspdlog1.15 libtinyxml2-11

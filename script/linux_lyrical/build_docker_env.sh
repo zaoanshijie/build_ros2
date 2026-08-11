@@ -196,6 +196,8 @@ if [[ ${dep_only} == "true" ]]; then
   echo "下载并打包依赖"
   dep_data=$(rosdep install --from-paths src --ignore-src -y --skip-keys "fastcdr rti-connext-dds-7.7.0 urdfdom_headers" -s)
   echo "${dep_data}" > dep_data.txt
+  echo "--------------------------------------------" >> dep_data.txt
+  pip freeze >> dep_data.txt
 
   # 将依赖打包
   # 创建存放deb包的目录
