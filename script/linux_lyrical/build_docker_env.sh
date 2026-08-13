@@ -43,6 +43,12 @@ fi
 rm -rf ${ros2_dir}
 mkdir -p ${ros2_dir}
 
+# 将依赖打包
+# 创建存放deb包的目录
+dep_download_dir="${ros2_dir}/packages"
+rm -rf "${dep_download_dir}"
+mkdir -p "${dep_download_dir}"
+
 # 阻止交互式命令 使用默认的
 export DEBIAN_FRONTEND=noninteractive
 
@@ -140,40 +146,53 @@ dpkg -i ${work_dir}/ros2-apt-source.deb
 echo "安装开发工具: $(lsb_release -r)"
 # 这里必须更新 ros2-apt-source.deb 这个更新了源
 apt update -y
-apt install -y \
-  python3-mypy \
-  python3-pip \
-  python3-pytest \
-  python3-pytest-cov \
-  python3-pytest-mock \
-  python3-pytest-repeat \
-  python3-pytest-rerunfailures \
-  python3-pytest-runner \
-  python3-pytest-timeout \
-  ros-dev-tools \
+# 定义固定的包列表
+PACKAGES=(
+  python3-mypy
+  python3-pip
+  python3-pytest
+  python3-pytest-cov
+  python3-pytest-mock
+  python3-pytest-repeat
+  python3-pytest-rerunfailures
+  python3-pytest-runner
+  python3-pytest-timeout
+  ros-dev-tools
   libssl-dev
+)
 
-echo "安装clang:${cpuinfo}"
-llvm_path="/opt"
-llvm_version="22.1.8"
-if [[ ! -d ${llvm_path} ]]; then
-  mkdir ${llvm_path}
+if [[ ${dep_only} == "true" ]]; then
+  # 因为这个依赖是下一步的必须  所以这里是既要下载还要安装
+  apt install --download-only -y -o Dir::Cache::Archives="${dep_download_dir}" "${PACKAGES[@]}"
+  mv ${work_dir}/ros2-apt-source.deb "${dep_download_dir}"
 fi
-if [[ -z ${cpuinfo} ]]; then
-  curl -OL https://github.com/llvm/llvm-project/releases/download/llvmorg-${llvm_version}/LLVM-${llvm_version}-Linux-X64.tar.xz
-  mv LLVM-${llvm_version}-Linux-X64.tar.xz ${llvm_path}
-  cd ${llvm_path}
-  tar -xf LLVM-${llvm_version}-Linux-X64.tar.xz
-  ln -s ${llvm_path}/LLVM-${llvm_version}-Linux-X64 ${llvm_path}/llvm
-else
-  curl -OL https://github.com/llvm/llvm-project/releases/download/llvmorg-${llvm_version}/LLVM-${llvm_version}-Linux-ARM64.tar.xz
-  mv LLVM-${llvm_version}-Linux-ARM64.tar.xz ${llvm_path}
-  cd ${llvm_path}
-  tar -xf LLVM-${llvm_version}-Linux-ARM64.tar.xz
-  ln -s ${llvm_path}/LLVM-${llvm_version}-Linux-ARM64 ${llvm_path}/llvm
-fi
+apt install -y "${PACKAGES[@]}"
 
-rm -rf ${llvm_path}/*.tar.xz
+if [[ ${dep_only} != "true" ]]; then
+
+  echo "安装clang:${cpuinfo}"
+  llvm_path="/opt"
+  llvm_version="22.1.8"
+  if [[ ! -d ${llvm_path} ]]; then
+    mkdir ${llvm_path}
+  fi
+  if [[ -z ${cpuinfo} ]]; then
+    curl -OL https://github.com/llvm/llvm-project/releases/download/llvmorg-${llvm_version}/LLVM-${llvm_version}-Linux-X64.tar.xz
+    mv LLVM-${llvm_version}-Linux-X64.tar.xz ${llvm_path}
+    cd ${llvm_path}
+    tar -xf LLVM-${llvm_version}-Linux-X64.tar.xz
+    ln -s ${llvm_path}/LLVM-${llvm_version}-Linux-X64 ${llvm_path}/llvm
+  else
+    curl -OL https://github.com/llvm/llvm-project/releases/download/llvmorg-${llvm_version}/LLVM-${llvm_version}-Linux-ARM64.tar.xz
+    mv LLVM-${llvm_version}-Linux-ARM64.tar.xz ${llvm_path}
+    cd ${llvm_path}
+    tar -xf LLVM-${llvm_version}-Linux-ARM64.tar.xz
+    ln -s ${llvm_path}/LLVM-${llvm_version}-Linux-ARM64 ${llvm_path}/llvm
+  fi
+
+  rm -rf ${llvm_path}/*.tar.xz
+
+fi
 
 
 echo "下载源码"
@@ -199,24 +218,18 @@ if [[ ${dep_only} == "true" ]]; then
   echo "--------------------------------------------" >> dep_data.txt
   pip freeze >> dep_data.txt
 
-  # 将依赖打包
-  # 创建存放deb包的目录
-  download_dir="${ros2_dir}/packages"
-  rm -rf "${download_dir}"
-  mkdir -p "${download_dir}"
-
   # 提取包名列表
   packages=$(grep -E "^\s*apt-get install -y" dep_data.txt | awk '{print $NF}' | tr '\n' ' ')
 
   # 设置apt下载目录
   echo "开始下载所有依赖包（包含依赖）..."
-  apt-get install --download-only -y -o Dir::Cache::Archives="${download_dir}" ${packages}
+  apt-get install --download-only -y -o Dir::Cache::Archives="${dep_download_dir}" ${packages}
 
   # 打包所有deb文件
   echo "打包所有deb文件..."
-  tar -czvf deps_packages.tar.bz2 -C "${download_dir}" .
+  tar -czvf deps_packages.tar.bz2 -C "${dep_download_dir}" .
 
-  echo "下载的包数量: $(ls -1 "${download_dir}"/*.deb 2>/dev/null | wc -l)"
+  echo "下载的包数量: $(ls -1 "${dep_download_dir}"/*.deb 2>/dev/null | wc -l)"
 
   exit 0
 fi
