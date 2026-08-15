@@ -9,8 +9,6 @@ script_dir=$(
 ros2_version=
 # 目标架构(amd64 arm64)
 build_target=
-# 源码目录
-docker_ros2_dir="/ros2_work_dir"
 
 function print_help() {
   echo "-r ros2的版本 默认lyrical"
@@ -51,7 +49,14 @@ export LANGUAGE=en_US.UTF-8
 locale
 
 # https://docs.ros.org/en/lyrical/Installation/Alternatives/Ubuntu-Development-Setup.html
-cd ${docker_ros2_dir}
+echo "下载源码"
+rm -rf "${script_dir}/src"
+mkdir -p ${script_dir}/src
+cd ${script_dir}
+
+src_addr="https://raw.githubusercontent.com/ros2/ros2/${ros2_version}-release/ros2.repos"
+echo "源码地址:${src_addr}"
+vcs import --input ${src_addr} src
 
 # if [[ -z ${cpuinfo} ]]; then
 #   echo "初始化pixi环境"

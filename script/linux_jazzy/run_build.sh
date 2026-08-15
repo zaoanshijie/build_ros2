@@ -11,8 +11,6 @@ ros2_version=
 build_docker=
 # 目标架构(amd64 arm64)
 build_target=
-# 源码目录
-docker_ros2_dir="/ros2_work_dir"
 # 只构建依赖
 dep_only="false"
 
@@ -94,17 +92,18 @@ docker run -itd \
 sleep 5
 
 if [[ ${dep_only} == "true" ]]; then
+  # 依赖包目录
+  docker_dep_dir="/ros2_work_dir"
   docker exec ${docker_name} /bin/bash -c "echo '容器运行成功,开始提取依赖包'"
-  docker exec ${docker_name} /bin/bash -c "cd ${docker_ros2_dir} && cp dep_data.txt /workspace"
-  docker exec ${docker_name} /bin/bash -c "cd ${docker_ros2_dir} && cp deps_packages.tar.bz2 /workspace"
+  docker exec ${docker_name} /bin/bash -c "cd ${docker_dep_dir} && cp dep_data.txt /workspace"
+  docker exec ${docker_name} /bin/bash -c "cd ${docker_dep_dir} && cp deps_packages.tar.bz2 /workspace"
 
 else
   echo "执行编译"
   docker exec ${docker_name} /bin/bash -c "echo '容器运行成功,开始执行${build_target}编译'"
-  docker exec ${docker_name} /bin/bash -c "cp -r /workspace/* ${docker_ros2_dir}"
-  docker exec ${docker_name} /bin/bash -c "cd ${docker_ros2_dir} && /bin/bash build.sh -r ${ros2_version} -t ${build_target}"
-  docker exec ${docker_name} /bin/bash -c "cd ${docker_ros2_dir} && /bin/bash build_${ros2_version}_dep_lib.sh"
-  docker exec ${docker_name} /bin/bash -c "cd ${docker_ros2_dir} && tar -cavf ros2.tar.bz2 install && mv ros2.tar.bz2 /workspace"
+  docker exec ${docker_name} /bin/bash -c "cd /workspace && /bin/bash build.sh -r ${ros2_version} -t ${build_target}"
+  docker exec ${docker_name} /bin/bash -c "cd /workspace && /bin/bash build_${ros2_version}_dep_lib.sh"
+  docker exec ${docker_name} /bin/bash -c "cd /workspace && tar -cavf ros2.tar.bz2 install"
   docker exec ${docker_name} /bin/bash -c "echo '${build_target}编译执行完毕'"
 fi
 # 清理容器

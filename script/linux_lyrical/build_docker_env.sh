@@ -168,31 +168,31 @@ if [[ ${dep_only} == "true" ]]; then
 fi
 apt install -y "${PACKAGES[@]}"
 
-if [[ ${dep_only} != "true" ]]; then
+# if [[ ${dep_only} != "true" ]]; then
 
-  echo "安装clang:${cpuinfo}"
-  llvm_path="/opt"
-  llvm_version="22.1.8"
-  if [[ ! -d ${llvm_path} ]]; then
-    mkdir ${llvm_path}
-  fi
-  if [[ -z ${cpuinfo} ]]; then
-    curl -OL https://github.com/llvm/llvm-project/releases/download/llvmorg-${llvm_version}/LLVM-${llvm_version}-Linux-X64.tar.xz
-    mv LLVM-${llvm_version}-Linux-X64.tar.xz ${llvm_path}
-    cd ${llvm_path}
-    tar -xf LLVM-${llvm_version}-Linux-X64.tar.xz
-    ln -s ${llvm_path}/LLVM-${llvm_version}-Linux-X64 ${llvm_path}/llvm
-  else
-    curl -OL https://github.com/llvm/llvm-project/releases/download/llvmorg-${llvm_version}/LLVM-${llvm_version}-Linux-ARM64.tar.xz
-    mv LLVM-${llvm_version}-Linux-ARM64.tar.xz ${llvm_path}
-    cd ${llvm_path}
-    tar -xf LLVM-${llvm_version}-Linux-ARM64.tar.xz
-    ln -s ${llvm_path}/LLVM-${llvm_version}-Linux-ARM64 ${llvm_path}/llvm
-  fi
+#   echo "安装clang:${cpuinfo}"
+#   llvm_path="/opt"
+#   llvm_version="22.1.8"
+#   if [[ ! -d ${llvm_path} ]]; then
+#     mkdir ${llvm_path}
+#   fi
+#   if [[ -z ${cpuinfo} ]]; then
+#     curl -OL https://github.com/llvm/llvm-project/releases/download/llvmorg-${llvm_version}/LLVM-${llvm_version}-Linux-X64.tar.xz
+#     mv LLVM-${llvm_version}-Linux-X64.tar.xz ${llvm_path}
+#     cd ${llvm_path}
+#     tar -xf LLVM-${llvm_version}-Linux-X64.tar.xz
+#     ln -s ${llvm_path}/LLVM-${llvm_version}-Linux-X64 ${llvm_path}/llvm
+#   else
+#     curl -OL https://github.com/llvm/llvm-project/releases/download/llvmorg-${llvm_version}/LLVM-${llvm_version}-Linux-ARM64.tar.xz
+#     mv LLVM-${llvm_version}-Linux-ARM64.tar.xz ${llvm_path}
+#     cd ${llvm_path}
+#     tar -xf LLVM-${llvm_version}-Linux-ARM64.tar.xz
+#     ln -s ${llvm_path}/LLVM-${llvm_version}-Linux-ARM64 ${llvm_path}/llvm
+#   fi
 
-  rm -rf ${llvm_path}/*.tar.xz
+#   rm -rf ${llvm_path}/*.tar.xz
 
-fi
+# fi
 
 
 echo "下载源码"
@@ -231,11 +231,14 @@ if [[ ${dep_only} == "true" ]]; then
 
   echo "下载的包数量: $(ls -1 "${dep_download_dir}"/*.deb 2>/dev/null | wc -l)"
 
-  exit 0
-fi
+else
+  echo "安装依赖"
+  rosdep install --from-paths src --ignore-src -y --skip-keys "fastcdr rti-connext-dds-7.7.0 urdfdom_headers"
 
-echo "安装依赖"
-rosdep install --from-paths src --ignore-src -y --skip-keys "fastcdr rti-connext-dds-7.7.0 urdfdom_headers"
+  # 删除所有数据包括源码,只保留环境
+  cd ~
+  rm -rf ${ros2_dir}
+fi
 
 
 apt-get clean
